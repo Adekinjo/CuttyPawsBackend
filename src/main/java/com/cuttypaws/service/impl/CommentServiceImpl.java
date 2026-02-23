@@ -25,10 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.format.DateTimeFormatter;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -51,8 +48,15 @@ public class CommentServiceImpl implements CommentService {
     // =========================================================================
     @Override
     @Transactional
-    public CommentResponse createComment(Long userId, CommentRequestDto request) {
+    public CommentResponse createComment(UUID userId, CommentRequestDto request) {
         try {
+            if (userId == null) {
+                return CommentResponse.builder()
+                        .status(401)
+                        .message("Please log in to comment")
+                        .build();
+            }
+
             if (request.getContent() == null || request.getContent().trim().isEmpty()) {
                 return CommentResponse.builder().status(400).message("Comment content is required").build();
             }
@@ -122,7 +126,7 @@ public class CommentServiceImpl implements CommentService {
     // =========================================================================
     @Override
     @Transactional
-    public CommentResponse updateComment(Long userId, Long commentId, CommentRequestDto request) {
+    public CommentResponse updateComment(UUID userId, Long commentId, CommentRequestDto request) {
         try {
             Comment comment = commentRepo.findById(commentId)
                     .orElseThrow(() -> new NotFoundException("Comment not found"));
@@ -163,7 +167,7 @@ public class CommentServiceImpl implements CommentService {
     // =========================================================================
     @Override
     @Transactional
-    public CommentResponse deleteComment(Long userId, Long commentId) {
+    public CommentResponse deleteComment(UUID userId, Long commentId) {
         try {
             Comment comment = commentRepo.findById(commentId)
                     .orElseThrow(() -> new NotFoundException("Comment not found"));
@@ -226,7 +230,7 @@ public class CommentServiceImpl implements CommentService {
     // =========================================================================
     @Override
     @Transactional(readOnly = true)
-    public CommentResponse getCommentsByPostId(Long postId, Long currentUserId, int page, int size) {
+    public CommentResponse getCommentsByPostId(Long postId, UUID currentUserId, int page, int size) {
         try {
             if (!postRepo.existsById(postId)) {
                 return CommentResponse.builder().status(404).message("Post not found").build();
@@ -258,7 +262,7 @@ public class CommentServiceImpl implements CommentService {
     // =========================================================================
 // ✅ MAPPERS
 // =========================================================================
-    private CommentDto mapCommentToDto(Comment c, Long currentUserId) {
+    private CommentDto mapCommentToDto(Comment c, UUID currentUserId) {
         if (c == null) return null;
 
         try {
@@ -326,7 +330,7 @@ public class CommentServiceImpl implements CommentService {
         }
     }
 
-    private CommentDto mapCommentToDtoWithReplies(Comment comment, Long currentUserId) {
+    private CommentDto mapCommentToDtoWithReplies(Comment comment, UUID currentUserId) {
         CommentDto dto = mapCommentToDto(comment, currentUserId);
 
         // 1-level replies only

@@ -7,26 +7,46 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface PostRepo extends JpaRepository<Post, Long> {
 
-    List<Post> findByOwnerIdOrderByCreatedAtDesc(Long ownerId);
+    List<Post> findByOwnerIdOrderByCreatedAtDesc(UUID ownerId);
 
     @Query("SELECT p FROM Post p ORDER BY p.createdAt DESC")
     List<Post> findAllByOrderByCreatedAtDesc();
 
     // Optional: For future pagination support
     @Query("SELECT COUNT(p) FROM Post p WHERE p.owner.id = :userId")
-    Long countByOwnerId(@Param("userId") Long userId);
+    Long countByOwnerId(@Param("userId") UUID userId);
 
-    @Query("SELECT p FROM Post p LEFT JOIN FETCH p.likes LEFT JOIN FETCH p.images WHERE p.id = :postId")
-    Optional<Post> findByIdWithLikesAndImages(@Param("postId") Long postId);
+    @Query("""
+       SELECT p FROM Post p
+       LEFT JOIN FETCH p.likes
+       LEFT JOIN FETCH p.media
+       WHERE p.id = :postId
+       """)
+    Optional<Post> findByIdWithLikesAndMedia(@Param("postId") Long postId);
 
-    @Query("SELECT p FROM Post p LEFT JOIN FETCH p.likes WHERE p.owner.id = :userId ORDER BY p.createdAt DESC")
-    List<Post> findByOwnerIdWithLikes(@Param("userId") Long userId);
+    @Query("""
+   SELECT DISTINCT p FROM Post p
+   LEFT JOIN FETCH p.likes
+   LEFT JOIN FETCH p.media
+   WHERE p.owner.id = :userId
+   ORDER BY p.createdAt DESC
+   """)
+    List<Post> findByOwnerIdWithLikesAndMedia(@Param("userId") UUID userId);
 
     @Query("SELECT p FROM Post p LEFT JOIN FETCH p.likes ORDER BY p.createdAt DESC")
     List<Post> findAllWithLikes();
+
+    @Query("""
+   SELECT DISTINCT p FROM Post p
+   LEFT JOIN FETCH p.media
+   ORDER BY p.createdAt DESC
+""")
+    List<Post> findAllWithMedia();
+
 
 
 }

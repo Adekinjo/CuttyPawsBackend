@@ -1,15 +1,20 @@
 package com.cuttypaws.mapper;
 
+import com.cuttypaws.dto.MediaDto;
 import com.cuttypaws.dto.PostDto;
 import com.cuttypaws.entity.Post;
-import com.cuttypaws.entity.PostImage;
+import com.cuttypaws.entity.PostMedia;
+import com.cuttypaws.enums.MediaType;
+import com.cuttypaws.repository.CommentRepo;
 import com.cuttypaws.repository.PostLikeRepo;
+import com.cuttypaws.repository.PostRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -18,52 +23,60 @@ import java.util.stream.Collectors;
 public class PostMapper {
 
     private final PostLikeRepo postLikeRepo;
+    private final CommentRepo commentRepo;
 
-    public PostDto mapPostToDto(Post post) {
-        return mapPostToDto(post, null);
-    }
+    public PostDto mapPostToDto(Post post, UUID currentUserId) {
 
-    public PostDto mapPostToDto(Post post, Long currentUserId) {
-        if (post == null) {
-            log.warn("Attempted to map null post to DTO");
-            return null;
+        List<MediaDto> media = post.getMedia() == null ? List.of() :
+                post.getMedia().stream()
+                        .map(m -> MediaDto.builder()
+                                .url(m.getMediaUrl())
+                                .type(m.getMediaType().name())
+                                .thumbnailUrl(m.getThumbnailUrl())
+                                .build())
+                        .toList();
+
+        // 🔍 DEBUG MEDIA FROM ENTITY
+        if (post.getMedia() == null || post.getMedia().isEmpty()) {
+            log.warn("⚠️ Post {} has NO media in entity", post.getId());
+        } else {
+            post.getMedia().forEach(m ->
+                    log.info("📷 Post {} MEDIA from DB → {}", post.getId(), m.getMediaUrl())
+            );
         }
 
-        try {
-            PostDto.PostDtoBuilder builder = PostDto.builder()
-                    .id(post.getId())
-                    .caption(post.getCaption())
-                    .ownerId(post.getOwner() != null ? post.getOwner().getId() : null)
-                    .ownerName(post.getOwner() != null ? post.getOwner().getName() : "Unknown User")
-                    .ownerProfileImage(post.getOwner() != null ? post.getOwner().getProfileImageUrl() : null)
-                    .createdAt(post.getCreatedAt() != null ?
-                            post.getCreatedAt().format(DateTimeFormatter.ISO_DATE_TIME) : null)
-                    .updatedAt(post.getUpdatedAt() != null ?
-                            post.getUpdatedAt().format(DateTimeFormatter.ISO_DATE_TIME) : null)
-                    .imageUrls(
-                            post.getImages() != null ?
-                                    post.getImages().stream()
-                                            .map(PostImage::getImageUrl)
-                                            .collect(Collectors.toList()) :
-                                    List.of()
-                    )
-                    .likeCount(post.getLikeCount())
-                    .commentCount(post.getCommentCount());
+        List<String> imageUrls = post.getMedia() == null ? List.of() :
+                post.getMedia().stream()
+                        .filter(m -> m.getMediaType() == MediaType.IMAGE)
+                        .map(PostMedia::getMediaUrl)
+                        .toList();
 
-            // FIX: Use repository instead of Post entity's cached collection
-            if (currentUserId != null) {
-                boolean isLiked = postLikeRepo.existsByUserIdAndPostId(currentUserId, post.getId());
-                builder.isLikedByCurrentUser(isLiked);
-            }
+        // 🔍 DEBUG IMAGE URLS SENT TO FRONTEND
+        imageUrls.forEach(url ->
+                log.info("🌐 Post {} IMAGE URL sent to frontend → {}", post.getId(), url)
+        );
 
-            PostDto postDto = builder.build();
-            log.debug("Mapped post {} to DTO for user {}", post.getId(), currentUserId);
-            return postDto;
+        PostDto.PostDtoBuilder builder = PostDto.builder()
+                .id(post.getId())
+                .caption(post.getCaption())
+                .ownerId(post.getOwner() != null ? post.getOwner().getId() : null)
+                .ownerName(post.getOwner() != null ? post.getOwner().getName() : "Unknown")
+                .ownerProfileImage(post.getOwner() != null ? post.getOwner().getProfileImageUrl() : null)
+                .media(media)
+                .imageUrls(imageUrls)
+                .createdAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : null)
+                .updatedAt(post.getUpdatedAt() != null ? post.getUpdatedAt().toString() : null);
 
-        } catch (Exception e) {
-            log.error("❌ Error mapping post {} to DTO: {}", post.getId(), e.getMessage(), e);
-            throw new RuntimeException("Failed to map post to DTO: " + e.getMessage());
+        builder.likeCount(postLikeRepo.countByPostId(post.getId()).intValue());
+        builder.commentCount(commentRepo.countByPostId(post.getId()).intValue());
+
+        if (currentUserId != null) {
+            builder.isLikedByCurrentUser(
+                    postLikeRepo.existsByUserIdAndPostId(currentUserId, post.getId())
+            );
         }
+
+        return builder.build();
     }
 
 

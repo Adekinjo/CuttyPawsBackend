@@ -2,6 +2,7 @@ package com.cuttypaws.service.impl;
 
 import com.cuttypaws.dto.*;
 import com.cuttypaws.entity.*;
+import com.cuttypaws.enums.MediaType;
 import com.cuttypaws.exception.*;
 import com.cuttypaws.mapper.PostMapper;
 import com.cuttypaws.repository.*;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,11 +30,12 @@ public class PostServiceImpl implements PostService {
     private final PostMapper mapper;
     private final FollowRepo followRepo;
     private final NotificationService notificationService;
+    private final CommentRepo commentRepo;
 
 
     @Override
     @Transactional
-    public PostResponse createPost(Long userId, PostRequestDto request) {
+    public PostResponse createPost(UUID userId, PostRequestDto request) {
         try {
             log.info("📌 [CREATE POST] Started by userId: {}", userId);
 
@@ -44,10 +47,10 @@ public class PostServiceImpl implements PostService {
                         .build();
             }
 
-            if (request.getImages() == null || request.getImages().isEmpty()) {
+            if (request.getMedia() == null || request.getMedia().isEmpty()) {
                 return PostResponse.builder()
                         .status(400)
-                        .message("At least one image is required")
+                        .message("At least one media file (image/video) is required")
                         .build();
             }
 
@@ -55,40 +58,38 @@ public class PostServiceImpl implements PostService {
             User user = userRepo.findById(userId)
                     .orElseThrow(() -> new NotFoundException("User not found"));
 
-            // Create post
+            // create post
             Post post = Post.builder()
                     .caption(request.getCaption().trim())
                     .owner(user)
-                    .images(new ArrayList<>())
+                    .media(new ArrayList<>())
                     .build();
 
-            // Upload images
-            log.info("📤 Uploading {} images...", request.getImages().size());
-            List<PostImage> images = request.getImages().stream()
+            List<PostMedia> mediaList = request.getMedia().stream()
                     .map(file -> {
-                        try {
-                            String url = awsS3Service.saveImageToS3(file);
-                            log.info("✔ Uploaded to: {}", url);
-                            return PostImage.builder()
-                                    .imageUrl(url)
-                                    .post(post)
-                                    .build();
-                        } catch (Exception e) {
-                            log.error("❌ Failed to upload image: {}", e.getMessage());
-                            throw new RuntimeException("Failed to upload image: " + file.getOriginalFilename());
-                        }
+                        String url = awsS3Service.uploadMedia(file);
+                        //MediaType type = file.getContentType().startsWith("video/") ? MediaType.VIDEO : MediaType.IMAGE;
+
+                        String contentType = file.getContentType();
+                        MediaType type = (contentType != null && contentType.startsWith("video/"))
+                                ? MediaType.VIDEO
+                                : MediaType.IMAGE;
+
+                        return PostMedia.builder()
+                                .mediaUrl(url)
+                                .mediaType(type)
+                                .post(post)
+                                .build();
                     })
-                    .collect(Collectors.toList());
+                    .toList();
 
-            post.setImages(images);
-
-            // Save post
-            log.info("💾 Saving post...");
+            post.setMedia(mediaList);
             Post savedPost = postRepo.save(post);
-            PostDto postDto = mapper.mapPostToDto(savedPost);
+            PostDto postDto = mapper.mapPostToDto(savedPost, userId);
 
 
-            List<Long> followerIds = followRepo.findFollowerIds(userId);
+
+            List<UUID> followerIds = followRepo.findFollowerIds(userId);
             notificationService.notifyFollowersNewPost(savedPost, user, followerIds);
 
             log.info("✅ Post created successfully with ID: {}", savedPost.getId());
@@ -115,55 +116,77 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
-    public PostResponse updatePost(Long userId, Long postId, PostRequestDto request) {
+    public PostResponse updatePost(UUID userId, Long postId, PostRequestDto request) {
         try {
-            log.info("✏ Updating post with ID: {} by user: {}", postId, userId);
+            log.info("✏ [UPDATE POST] postId={} by userId={}", postId, userId);
 
-            // Find post
             Post post = postRepo.findById(postId)
                     .orElseThrow(() -> new NotFoundException("Post not found"));
 
-            // Check ownership
-            if (!post.getOwner().getId().equals(userId)) {
+            // Ownership check
+            if (post.getOwner() == null || !userId.equals(post.getOwner().getId())) {
                 throw new UnauthorizedException("You can only update your own posts");
             }
 
-            // Update caption
+            // Update caption (optional)
             if (request.getCaption() != null && !request.getCaption().trim().isEmpty()) {
                 post.setCaption(request.getCaption().trim());
             }
 
-            // Update images if provided
-            if (request.getImages() != null && !request.getImages().isEmpty()) {
-                log.info("🔄 Updating post images...");
+            // Ensure list is initialized
+            if (post.getMedia() == null) {
+                post.setMedia(new ArrayList<>());
+            }
 
-                // Clear existing images
-                post.getImages().clear();
+            // 1) Delete requested media (optional)
+            if (request.getMediaToDelete() != null && !request.getMediaToDelete().isEmpty()) {
+                log.info("🗑 Removing {} media items from post {}", request.getMediaToDelete().size(), postId);
 
-                // Upload new images
-                List<PostImage> newImages = request.getImages().stream()
-                        .map(file -> {
-                            try {
-                                String url = awsS3Service.saveImageToS3(file);
-                                log.info("⬆ Updated image uploaded: {}", url);
-                                return PostImage.builder()
-                                        .imageUrl(url)
-                                        .post(post)
-                                        .build();
-                            } catch (Exception e) {
-                                log.error("❌ Failed to upload image: {}", e.getMessage());
-                                throw new RuntimeException("Failed to upload image: " + file.getOriginalFilename());
-                            }
-                        })
-                        .collect(Collectors.toList());
+                // Remove from collection (orphanRemoval=true will delete rows)
+                post.getMedia().removeIf(m -> m.getId() != null && request.getMediaToDelete().contains(m.getId()));
+            }
 
-                post.setImages(newImages);
+            // 2) Add new media uploads (optional)
+            if (request.getMedia() != null && !request.getMedia().isEmpty()) {
+                log.info("📤 Uploading {} new media files for post {}", request.getMedia().size(), postId);
+
+                for (var file : request.getMedia()) {
+                    if (file == null || file.isEmpty()) continue;
+
+                    String url = awsS3Service.uploadMedia(file);
+
+                    String contentType = file.getContentType();
+                    MediaType type = (contentType != null && contentType.startsWith("video/"))
+                            ? MediaType.VIDEO
+                            : MediaType.IMAGE;
+
+                    PostMedia pm = PostMedia.builder()
+                            .mediaUrl(url)
+                            .mediaType(type)
+                            .post(post)
+                            .build();
+
+                    post.getMedia().add(pm);
+                }
+            }
+
+            // Optional safety: prevent empty post (no caption AND no media)
+            boolean hasCaption = post.getCaption() != null && !post.getCaption().trim().isEmpty();
+            boolean hasMedia = post.getMedia() != null && !post.getMedia().isEmpty();
+            if (!hasCaption && !hasMedia) {
+                return PostResponse.builder()
+                        .status(400)
+                        .message("Post cannot be empty. Provide caption or at least one media file.")
+                        .build();
             }
 
             Post updatedPost = postRepo.save(post);
-            PostDto postDto = mapper.mapPostToDto(updatedPost);
 
-            log.info("✅ Post updated successfully: {}", postId);
+            // use userId as current user for isLikedByCurrentUser
+            PostDto postDto = mapper.mapPostToDto(updatedPost, userId);
+
+            log.info("✅ Post updated successfully: postId={}", postId);
+
             return PostResponse.builder()
                     .status(200)
                     .message("Post updated successfully")
@@ -171,17 +194,19 @@ public class PostServiceImpl implements PostService {
                     .build();
 
         } catch (NotFoundException e) {
-            log.error("Post not found for update: {}", e.getMessage());
+            log.error("❌ Post not found: {}", e.getMessage());
             return PostResponse.builder()
                     .status(404)
                     .message(e.getMessage())
                     .build();
+
         } catch (UnauthorizedException e) {
-            log.error("Unauthorized post update attempt: {}", e.getMessage());
+            log.error("❌ Unauthorized update: {}", e.getMessage());
             return PostResponse.builder()
                     .status(403)
                     .message(e.getMessage())
                     .build();
+
         } catch (Exception e) {
             log.error("❌ Error updating post {}: {}", postId, e.getMessage(), e);
             return PostResponse.builder()
@@ -191,9 +216,10 @@ public class PostServiceImpl implements PostService {
         }
     }
 
+
     @Override
     @Transactional
-    public PostResponse deletePost(Long userId, Long postId) {
+    public PostResponse deletePost(UUID userId, Long postId) {
         try {
             log.warn("🗑 Deleting post with ID: {} by user: {}", postId, userId);
 
@@ -238,10 +264,10 @@ public class PostServiceImpl implements PostService {
     @Override
     public PostResponse getPostById(Long postId) {
         try {
-            Post post = postRepo.findById(postId)
+            Post post = postRepo.findByIdWithLikesAndMedia(postId)
                     .orElseThrow(() -> new NotFoundException("Post not found"));
 
-            PostDto postDto = mapper.mapPostToDto(post);
+            PostDto postDto = mapper.mapPostToDto(post,null);
 
             return PostResponse.builder()
                     .status(200)
@@ -263,7 +289,7 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public PostResponse getMyPosts(Long userId, Long currentUserId) {
+    public PostResponse getMyPosts(UUID userId, UUID currentUserId) {
         try {
             List<Post> posts = postRepo.findByOwnerIdOrderByCreatedAtDesc(userId);
             List<PostDto> postDtos = posts.stream()
@@ -285,12 +311,13 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public PostResponse getAllPosts(Long currentUserId) {
+    public PostResponse getAllPosts() {
         try {
-            List<Post> posts = postRepo.findAllByOrderByCreatedAtDesc();
+            List<Post> posts = postRepo.findAllWithMedia();
+
             List<PostDto> postDtos = posts.stream()
-                    .map(mapper::mapPostToDto)
-                    .collect(Collectors.toList());
+                    .map(p -> mapper.mapPostToDto(p, null))
+                    .toList();
 
             return PostResponse.builder()
                     .status(200)
@@ -301,13 +328,14 @@ public class PostServiceImpl implements PostService {
             log.error("❌ Error retrieving all posts: {}", e.getMessage(), e);
             return PostResponse.builder()
                     .status(500)
-                    .message("Failed to retrieve posts: " + e.getMessage())
+                    .message("Failed to retrieve posts")
                     .build();
         }
     }
 
+
     @Override
-    public PostResponse getUserPosts(Long userId, Long currentUserId) {
+    public PostResponse getUserPosts(UUID userId, UUID currentUserId) {
         try {
             // Verify user exists
             if (!userRepo.existsById(userId)) {

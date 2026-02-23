@@ -3,6 +3,7 @@ package com.cuttypaws.controller;
 import com.cuttypaws.enums.OrderStatus;
 import com.cuttypaws.response.OrderResponse;
 import com.cuttypaws.service.interf.OrderItemService;
+import com.cuttypaws.service.interf.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/order")
@@ -46,10 +48,21 @@ public class OrderItemController {
 
     }
 
+    @GetMapping("/my-orders")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_CUSTOMER_SERVICE', 'ROLE_COMPANY', 'ROLE_USER')")
+    public ResponseEntity<OrderResponse> getMyOrders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(orderItemService.getMyOrders(pageable));
+    }
+
+
     @GetMapping("/company/{companyId}/orders")
     @PreAuthorize("hasAuthority('ROLE_COMPANY')")
     public ResponseEntity<OrderResponse> getCompanyProductOrders(
-            @PathVariable Long companyId,
+            @PathVariable UUID companyId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));

@@ -4,10 +4,12 @@ import com.cuttypaws.enums.UserRole;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Entity
@@ -18,8 +20,11 @@ import java.util.List;
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidGenerator(style = UuidGenerator.Style.TIME)
+    @Column(columnDefinition = "UUID", updatable = false, nullable = false)
+    private UUID id;
+
 
     @NotBlank(message = "Name is required")
     private String name;
@@ -30,6 +35,9 @@ public class User {
 
     @Column(name = "profile_image_url")
     private String profileImageUrl;
+
+    @Column(name = "cover image url")
+    private String coverImageUrl;
 
     @Column(name = "password")
     @NotBlank(message = "password is required")

@@ -4,11 +4,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.MethodParameter;
+import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
+
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -20,7 +23,7 @@ public class CurrentUserResolver implements HandlerMethodArgumentResolver {
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return parameter.hasParameterAnnotation(CurrentUser.class) &&
-                parameter.getParameterType().equals(Long.class);
+                parameter.getParameterType().equals(UUID.class);
     }
 
     @Override
@@ -33,18 +36,14 @@ public class CurrentUserResolver implements HandlerMethodArgumentResolver {
         String token = jwtUtils.extractJwtFromRequest(request);
 
         if (token == null) {
-            log.error("❌ No JWT token found in request header");
-            return null;
+            throw new AuthenticationServiceException("Unauthorized: Missing token");
         }
 
-        Long userId = jwtUtils.getUserIdFromToken(token);
+        UUID userId = jwtUtils.getUserIdFromToken(token);
 
         if (userId == null) {
-            log.error("❌ Token does NOT contain userId");
-        } else {
-            log.info("✔️ Extracted userId from token: {}", userId);
+            throw new RuntimeException("Unauthorized: Invalid token");
         }
-
         return userId;
     }
 }

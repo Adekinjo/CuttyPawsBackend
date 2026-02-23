@@ -21,7 +21,7 @@ import java.util.List;
 public class UserDto {
 
 
-    private Long id;
+    private String id;
 
     @NotBlank(message = "Email is required")
     @Email(message = "Email should be valid")
@@ -36,6 +36,9 @@ public class UserDto {
     @NotBlank(message = "Password is required")
     private String password;
 
+    private String profileImageUrl;
+    private String coverImageUrl;
+
     private LocalDateTime regDate;
 
     private String role;
@@ -45,5 +48,10 @@ public class UserDto {
 
     private String companyName;
     private String businessRegistrationNumber;
+
+    private Boolean isBlocked;
+    private String blockedReason;
+    private LocalDateTime blockedAt;
+    private Boolean isActive;
 }
 

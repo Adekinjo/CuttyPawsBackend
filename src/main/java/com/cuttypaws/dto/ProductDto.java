@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
@@ -54,7 +55,7 @@ public class ProductDto {
     private Integer stock;
 
 
-    private Long userId;
+    private UUID userId;
     private String companyName;
 
 

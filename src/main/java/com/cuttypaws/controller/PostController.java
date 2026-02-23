@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/post")
 @RequiredArgsConstructor
@@ -18,7 +20,7 @@ public class PostController {
     // ================== CREATE POST ==================
     @PostMapping("/create")
     public ResponseEntity<PostResponse> createPost(
-            @CurrentUser Long currentUserId,
+            @CurrentUser UUID currentUserId,
             @ModelAttribute PostRequestDto request
     ) {
         PostResponse response = postService.createPost(currentUserId, request);
@@ -28,7 +30,7 @@ public class PostController {
     // ================== UPDATE POST ==================
     @PutMapping("/{postId}")
     public ResponseEntity<PostResponse> updatePost(
-            @CurrentUser Long currentUserId,
+            @CurrentUser UUID currentUserId,
             @PathVariable Long postId,
             @ModelAttribute PostRequestDto request
     ) {
@@ -39,7 +41,7 @@ public class PostController {
     // ================== DELETE POST ==================
     @DeleteMapping("/{postId}")
     public ResponseEntity<PostResponse> deletePost(
-            @CurrentUser Long currentUserId,
+            @CurrentUser UUID currentUserId,
             @PathVariable Long postId
     ) {
         PostResponse response = postService.deletePost(currentUserId, postId);
@@ -55,24 +57,24 @@ public class PostController {
 
     // ================== GET MY POSTS ==================
     @GetMapping("/my-posts")
-    public ResponseEntity<PostResponse> getMyPosts(@CurrentUser Long currentUserId) {
+    public ResponseEntity<PostResponse> getMyPosts(@CurrentUser() UUID currentUserId) {
         PostResponse response = postService.getMyPosts(currentUserId, currentUserId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
     // ================== GET ALL POSTS FOR FEED ==================
     @GetMapping("/get-all")
-    public ResponseEntity<PostResponse> getAllPosts(@CurrentUser Long currentUserId) {
+    public ResponseEntity<PostResponse> getAllPosts() {
         // Feed must respect logged-in user for "isLikedByCurrentUser"
-        PostResponse response = postService.getAllPosts(currentUserId);
+        PostResponse response = postService.getAllPosts();
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
     // ================== GET POSTS OF ANOTHER USER ==================
     @GetMapping("/user/{userId}")
     public ResponseEntity<PostResponse> getUserPosts(
-            @PathVariable Long userId,
-            @CurrentUser Long currentUserId
+            @PathVariable UUID userId,
+            @CurrentUser UUID currentUserId
     ) {
         PostResponse response = postService.getUserPosts(userId, currentUserId);
         return ResponseEntity.status(response.getStatus()).body(response);

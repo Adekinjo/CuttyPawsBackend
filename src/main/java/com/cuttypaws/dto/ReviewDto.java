@@ -3,6 +3,7 @@ package com.cuttypaws.dto;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 public class ReviewDto {
@@ -11,7 +12,7 @@ public class ReviewDto {
     private String comment;
     private LocalDateTime timestamp;
     private Long productId;
-    private Long userId;
+    private UUID userId;
     private String userName;
 }
 

@@ -7,20 +7,21 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface NotificationRepo extends JpaRepository<Notification, Long> {
 
-    Page<Notification> findByRecipientIdOrderByCreatedAtDesc(Long recipientId, Pageable pageable);
+    Page<Notification> findByRecipientIdOrderByCreatedAtDesc(UUID recipientId, Pageable pageable);
 
-    long countByRecipientIdAndReadFalse(Long recipientId);
+    long countByRecipientIdAndReadFalse(UUID recipientId);
 
-    List<Notification> findByRecipientIdAndReadFalse(Long recipientId);
+    List<Notification> findByRecipientIdAndReadFalse(UUID recipientId);
 
 
     // Used to prevent duplicates for things like "like" or "new post"
     boolean existsByRecipientIdAndSenderIdAndTypeAndPostIdAndCommentId(
-            Long recipientId,
-            Long senderId,
+            UUID recipientId,
+            UUID senderId,
             NotificationType type,
             Long postId,
             Long commentId

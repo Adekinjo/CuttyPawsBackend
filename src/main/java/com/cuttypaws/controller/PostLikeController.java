@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/likes")
 @RequiredArgsConstructor
@@ -21,7 +23,7 @@ public class PostLikeController {
 
     @PostMapping("/{postId}/react")
     public ResponseEntity<PostLikeResponse> reactToPost(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long postId,
             @RequestParam PostLike.ReactionType reaction
     ) {
@@ -41,7 +43,7 @@ public class PostLikeController {
 
     @PostMapping("/{postId}/remove-reaction")
     public ResponseEntity<PostLikeResponse> removeReaction(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long postId
     ) {
         try {
@@ -76,7 +78,7 @@ public class PostLikeController {
 
     @GetMapping("/{postId}/user-reaction")
     public ResponseEntity<PostLikeResponse> getUserReaction(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long postId
     ) {
         try {
@@ -96,7 +98,7 @@ public class PostLikeController {
     // Keep existing endpoints for backward compatibility
     @PostMapping("/{postId}/like")
     public ResponseEntity<PostLikeResponse> likePost(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long postId
     ) {
         return reactToPost(userId, postId, PostLike.ReactionType.LIKE);
@@ -104,7 +106,7 @@ public class PostLikeController {
 
     @PostMapping("/{postId}/unlike")
     public ResponseEntity<PostLikeResponse> unlikePost(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long postId
     ) {
         return removeReaction(userId, postId);

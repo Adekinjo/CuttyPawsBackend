@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -282,7 +283,7 @@ public class OrderItemServiceImpl implements OrderItemService {
 
             Page<OrderItem> orderItemPage = orderItemRepo.findAll(spec, pageable);
 
-            if (orderItemPage.isEmpty()) {
+            if (orderItemPage == null) {
                 log.error("No orders found with the specified filters.");
                 throw new NotFoundException("No Order Found");
             }
@@ -294,6 +295,9 @@ public class OrderItemServiceImpl implements OrderItemService {
             return OrderResponse.builder()
                     .status(200)
                     .orderItemList(orderItemDtos)
+                    .message(orderItemDtos.isEmpty()
+                            ? "No orders match the selected filters."
+                            : "Orders retrieved successfully.")
                     .totalPage(orderItemPage.getTotalPages())
                     .totalElement(orderItemPage.getTotalElements())
                     .build();
@@ -306,8 +310,29 @@ public class OrderItemServiceImpl implements OrderItemService {
         }
     }
 
+    @Transactional
     @Override
-    public OrderResponse getCompanyProductOrders(Long companyId, Pageable pageable) {
+    public OrderResponse getMyOrders(Pageable pageable) {
+        UUID userId = userService.getLoginUser().getId(); // ✅ THIS LINE GOES HERE
+
+        Page<Order> page = orderRepo.findByUserId(userId, pageable);
+
+        return OrderResponse.builder()
+                .status(200)
+                .message("My orders retrieved successfully")
+                .orderList(
+                        page.getContent().stream()
+                                .map(orderMapper::toOrderDto)
+                                .toList()
+                )
+                .totalPage(page.getTotalPages())
+                .totalElement(page.getTotalElements())
+                .build();
+    }
+
+
+    @Override
+    public OrderResponse getCompanyProductOrders(UUID companyId, Pageable pageable) {
         try {
             // Fetch all products belonging to the company
             List<Long> productIds = productRepo.findByUserId(companyId).stream()

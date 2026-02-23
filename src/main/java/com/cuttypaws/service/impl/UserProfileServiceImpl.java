@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,7 +34,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserResponse getUserProfile(Long userId) {
+    public UserResponse getUserProfile(UUID userId) {
         try {
             log.info("Fetching profile for user ID: {}", userId);
 
@@ -74,7 +75,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserResponse getUserPosts(Long userId) {
+    public UserResponse getUserPosts(UUID userId) {
         try {
             log.info("Fetching posts for user ID: {}", userId);
 
@@ -89,10 +90,10 @@ public class UserProfileServiceImpl implements UserProfileService {
                         .build();
             }
 
-            List<Post> userPosts = postRepo.findByOwnerIdOrderByCreatedAtDesc(userId);
+            List<Post> userPosts = postRepo.findByOwnerIdWithLikesAndMedia(userId);
 
             // Get current user ID for like status
-            Long currentUserId = getCurrentUserId();
+            UUID currentUserId = getCurrentUserId();
 
             List<PostDto> postDtos = userPosts.stream()
                     .map(post -> postMapper.mapPostToDto(post, currentUserId))
@@ -122,7 +123,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     @Override
     @Transactional
-    public UserResponse blockUser(Long userId, String reason) {
+    public UserResponse blockUser(UUID userId, String reason) {
         try {
             log.info("Blocking user ID: {} with reason: {}", userId, reason);
 
@@ -159,7 +160,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     @Override
     @Transactional
-    public UserResponse unblockUser(Long userId) {
+    public UserResponse unblockUser(UUID userId) {
         try {
             log.info("Unblocking user ID: {}", userId);
 
@@ -196,7 +197,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserResponse getUserStats(Long userId) {
+    public UserResponse getUserStats(UUID userId) {
         try {
             log.info("Fetching stats for user ID: {}", userId);
 
@@ -275,7 +276,7 @@ public class UserProfileServiceImpl implements UserProfileService {
     }
 
 
-    private Long getCurrentUserId() {
+    private UUID getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated()) {
             String email = authentication.getName();

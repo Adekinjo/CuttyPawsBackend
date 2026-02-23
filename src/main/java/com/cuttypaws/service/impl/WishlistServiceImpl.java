@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,7 +28,7 @@ public class WishlistServiceImpl implements WishlistService {
     private WishlistMapper wishlistMapper;
 
     @Override
-    public WishlistDto addToWishlist(Long userId, Long productId) {
+    public WishlistDto addToWishlist(UUID userId, Long productId) {
         User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
         Product product = productRepository.findById(productId).orElseThrow(() -> new RuntimeException("Product not found"));Wishlist wishlist = new Wishlist();
         wishlist.setUser(user);
@@ -38,14 +39,14 @@ public class WishlistServiceImpl implements WishlistService {
     }
 
     @Override
-    public List<WishlistDto> getWishlistByUserId(Long userId) {
+    public List<WishlistDto> getWishlistByUserId(UUID userId) {
         List<Wishlist> wishlists = wishlistRepository.findByUserId(userId);
         return wishlists.stream().map(wishlistMapper::wishlistDto).collect(Collectors.toList());
     }
 
     @Override
     @Transactional
-    public void removeFromWishlist(Long userId, Long productId) {
+    public void removeFromWishlist(UUID userId, Long productId) {
         wishlistRepository.deleteByUserIdAndProductId(userId, productId);
     }
 }

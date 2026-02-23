@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 public interface ProductRepo extends JpaRepository<Product, Long> {
 
@@ -68,7 +69,7 @@ public interface ProductRepo extends JpaRepository<Product, Long> {
     List<Product> findAllWithLikes();
 
     @Query("SELECT p FROM Product p WHERE p.user.id = :userId")
-    List<Product> findByUserId(@Param("userId") Long userId);
+    List<Product> findByUserId(@Param("userId") UUID userId);
 
     @EntityGraph(attributePaths = {"images"})
     List<Product> findTop4ByOrderByLikesDesc();

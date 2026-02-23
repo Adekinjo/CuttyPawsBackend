@@ -10,6 +10,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/follow")
 @RequiredArgsConstructor
@@ -19,21 +21,21 @@ public class FollowController {
     private final FollowService followService;
 
     @PostMapping("/{userId}")
-    public ResponseEntity<FollowResponse> followUser(@PathVariable Long userId) {
+    public ResponseEntity<FollowResponse> followUser(@PathVariable UUID userId) {
         log.info("🎯 FOLLOW USER REQUEST - Target User ID: {}", userId);
         FollowResponse response = followService.followUser(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
     @DeleteMapping("/{userId}")
-    public ResponseEntity<FollowResponse> unfollowUser(@PathVariable Long userId) {
+    public ResponseEntity<FollowResponse> unfollowUser(@PathVariable UUID userId) {
         log.info("🎯 UNFOLLOW USER REQUEST - Target User ID: {}", userId);
         FollowResponse response = followService.unfollowUser(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
     @GetMapping("/{userId}/stats")
-    public ResponseEntity<FollowResponse> getFollowStats(@PathVariable Long userId) {
+    public ResponseEntity<FollowResponse> getFollowStats(@PathVariable UUID userId) {
         log.info("🎯 GET FOLLOW STATS REQUEST - User ID: {}", userId);
         FollowResponse response = followService.getFollowStats(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
@@ -41,7 +43,7 @@ public class FollowController {
 
     @GetMapping("/{userId}/followers")
     public ResponseEntity<FollowResponse> getFollowers(
-            @PathVariable Long userId,
+            @PathVariable UUID userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -59,7 +61,7 @@ public class FollowController {
 
     @GetMapping("/{userId}/following")
     public ResponseEntity<FollowResponse> getFollowing(
-            @PathVariable Long userId,
+            @PathVariable UUID userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
@@ -76,28 +78,28 @@ public class FollowController {
     }
 
     @GetMapping("/{userId}/status")
-    public ResponseEntity<FollowResponse> checkFollowStatus(@PathVariable Long userId) {
+    public ResponseEntity<FollowResponse> checkFollowStatus(@PathVariable UUID userId) {
         log.info("🎯 CHECK FOLLOW STATUS REQUEST - Target User ID: {}", userId);
         FollowResponse response = followService.checkFollowStatus(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
     @PostMapping("/{userId}/mute")
-    public ResponseEntity<FollowResponse> muteUser(@PathVariable Long userId) {
+    public ResponseEntity<FollowResponse> muteUser(@PathVariable UUID userId) {
         log.info("🎯 MUTE USER REQUEST - Target User ID: {}", userId);
         FollowResponse response = followService.muteUser(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
     @PostMapping("/{userId}/unmute")
-    public ResponseEntity<FollowResponse> unmuteUser(@PathVariable Long userId) {
+    public ResponseEntity<FollowResponse> unmuteUser(@PathVariable UUID userId) {
         log.info("🎯 UNMUTE USER REQUEST - Target User ID: {}", userId);
         FollowResponse response = followService.unmuteUser(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
     @GetMapping("/{userId}/mutual")
-    public ResponseEntity<FollowResponse> getMutualFollowers(@PathVariable Long userId) {
+    public ResponseEntity<FollowResponse> getMutualFollowers(@PathVariable UUID userId) {
         log.info("🎯 GET MUTUAL FOLLOWERS REQUEST - Target User ID: {}", userId);
         FollowResponse response = followService.getMutualFollowers(userId);
         return ResponseEntity.status(response.getStatus()).body(response);

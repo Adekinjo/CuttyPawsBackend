@@ -61,11 +61,11 @@ public class CacheMonitorService {
         log.debug("❌ Cache MISS: {}", cacheName);
     }
 
-    public void recordCacheUpdate(String cacheName) {
-        lastUpdate.put(cacheName, LocalDateTime.now());
-        lastAccess.put(cacheName, LocalDateTime.now());
-        log.debug("🔄 Cache UPDATED: {}", cacheName);
-    }
+//    public void recordCacheUpdate(String cacheName) {
+//        lastUpdate.put(cacheName, LocalDateTime.now());
+//        lastAccess.put(cacheName, LocalDateTime.now());
+//        log.debug("🔄 Cache UPDATED: {}", cacheName);
+//    }
 
     public CacheStatistics getCacheStatistics(String cacheName) {
         long hits = hitCount.getOrDefault(cacheName, new AtomicLong(0)).get();
@@ -129,19 +129,19 @@ public class CacheMonitorService {
         return "CRITICAL";
     }
 
-    public void clearCache(String cacheName) {
-        var cache = cacheManager.getCache(cacheName);
-        if (cache != null) {
-            cache.clear();
-            recordCacheUpdate(cacheName);
-            log.info("🧹 Cleared cache: {}", cacheName);
-        }
-    }
+//    public void clearCache(String cacheName) {
+//        var cache = cacheManager.getCache(cacheName);
+//        if (cache != null) {
+//            cache.clear();
+//            recordCacheUpdate(cacheName);
+//            log.info("🧹 Cleared cache: {}", cacheName);
+//        }
+//    }
 
-    public void clearAllCaches() {
-        cacheManager.getCacheNames().forEach(this::clearCache);
-        log.info("🧹 Cleared all caches");
-    }
+//    public void clearAllCaches() {
+//        cacheManager.getCacheNames().forEach(this::clearCache);
+//        log.info("🧹 Cleared all caches");
+//    }
 
     public void resetStatistics() {
         hitCount.clear();

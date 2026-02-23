@@ -1,13 +1,13 @@
 package com.cuttypaws.mapper;
 
 import com.cuttypaws.dto.AddressDto;
+import com.cuttypaws.dto.OrderDto;
 import com.cuttypaws.dto.OrderItemDto;
 import com.cuttypaws.dto.UserDto;
-import com.cuttypaws.entity.Address;
-import com.cuttypaws.entity.OrderItem;
-import com.cuttypaws.entity.Product;
-import com.cuttypaws.entity.User;
+import com.cuttypaws.entity.*;
 import org.springframework.stereotype.Component;
+
+import java.util.stream.Collectors;
 
 
 @Component
@@ -54,10 +54,45 @@ public class OrderMapper {
         return orderItemDto;
     }
 
+    public OrderDto toOrderDto(Order order) {
+        OrderDto dto = new OrderDto();
+        dto.setId(order.getId());
+        dto.setTotalPrice(order.getTotalPrice());
+        dto.setCreatedAt(order.getCreatedAt());
+
+        dto.setOrderItemList(
+                order.getOrderItemList()
+                        .stream()
+                        .map(this::toOrderItemDto)
+                        .collect(Collectors.toList())
+        );
+
+        return dto;
+    }
+
+    private OrderItemDto toOrderItemDto(OrderItem oi) {
+        return OrderItemDto.builder()
+                .id(oi.getId())
+                .quantity(oi.getQuantity())
+                .price(oi.getPrice())
+                .status(oi.getOrderStatus().name())
+                .createdAt(oi.getCreatedAt())
+                .selectedSize(oi.getSize())
+                .selectedColor(oi.getColor())
+                .productId(oi.getProduct() != null ? oi.getProduct().getId() : null)
+                .productName(oi.getProduct() != null ? oi.getProduct().getName() : null)
+                .productImageUrl(
+                        (oi.getProduct() != null && oi.getProduct().getImages() != null && !oi.getProduct().getImages().isEmpty())
+                                ? oi.getProduct().getImages().get(0).getImageUrl()
+                                : null
+                )
+                .build();
+    }
+
 
     public UserDto mapUserToDtoBasic(User user){
         UserDto userDto = new UserDto();
-        userDto.setId(user.getId());
+        userDto.setId(user.getId().toString());
         userDto.setPhoneNumber(user.getPhoneNumber());
         userDto.setEmail(user.getEmail());
         if (user.getCompanyName() != null) {

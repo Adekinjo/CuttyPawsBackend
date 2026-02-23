@@ -4,9 +4,11 @@ package com.cuttypaws.service.interf;
 import com.cuttypaws.dto.PetRequestDto;
 import com.cuttypaws.response.PetResponse;
 
+import java.util.UUID;
+
 public interface PetService {
 
-    PetResponse createPet(Long userId, PetRequestDto request);
+    PetResponse createPet(UUID userId, PetRequestDto request);
 
     PetResponse updatePet(Long petId, PetRequestDto request);
 
@@ -14,7 +16,7 @@ public interface PetService {
 
     PetResponse getPetById(Long petId);
 
-    PetResponse getMyPets(Long userId);
+    PetResponse getMyPets(UUID userId);
 
     PetResponse getAllPets();
 }

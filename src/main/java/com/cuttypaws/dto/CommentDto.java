@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -17,7 +18,7 @@ public class CommentDto {
     private Long id;
     private String content;
 
-    private Long userId;
+    private UUID userId;
     private String userName;
     private String userProfileImage;
 

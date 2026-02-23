@@ -8,6 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/reviews")
@@ -36,7 +37,7 @@ public class ReviewController {
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<ReviewDto>> getReviewsByUserId(@PathVariable Long userId) {
+    public ResponseEntity<List<ReviewDto>> getReviewsByUserId(@PathVariable UUID userId) {
         List<ReviewDto> reviews = reviewService.getReviewsByUserId(userId);
         return ResponseEntity.ok(reviews);
     }
@@ -44,7 +45,7 @@ public class ReviewController {
     @GetMapping("/product/{productId}/user/{userId}")
     public ResponseEntity<List<ReviewDto>> getReviewsByProductIdAndUserId(
             @PathVariable Long productId,
-            @PathVariable Long userId) {
+            @PathVariable UUID userId) {
         List<ReviewDto> reviews = reviewService.getReviewsByProductIdAndUserId(productId, userId);
         return ResponseEntity.ok(reviews);
     }

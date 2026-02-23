@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/wishlist")
@@ -22,13 +23,13 @@ public class WishlistController {
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<WishlistDto>> getWishlistByUserId(@PathVariable Long userId) {
+    public ResponseEntity<List<WishlistDto>> getWishlistByUserId(@PathVariable UUID userId) {
         List<WishlistDto> wishlist = wishlistService.getWishlistByUserId(userId);
         return ResponseEntity.ok(wishlist);
     }
 
     @DeleteMapping("/remove")
-    public ResponseEntity<Void> removeFromWishlist(@RequestParam Long userId, @RequestParam Long productId) {
+    public ResponseEntity<Void> removeFromWishlist(@RequestParam UUID userId, @RequestParam Long productId) {
         wishlistService.removeFromWishlist(userId, productId);
         return ResponseEntity.noContent().build();
     }

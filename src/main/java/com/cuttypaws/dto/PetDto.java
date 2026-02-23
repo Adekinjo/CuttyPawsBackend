@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -21,7 +22,7 @@ public class PetDto {
     private String gender;
     private String description;
 
-    private Long ownerId;
+    private UUID ownerId;
     private String ownerName;
 
     private List<String> imageUrls;

@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -25,5 +26,5 @@ public class PaymentResponse {
     private String currency;
     private String reference;
     private Long paymentId;
-    private Long userId;
+    private UUID userId;
 }

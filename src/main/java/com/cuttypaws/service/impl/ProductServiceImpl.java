@@ -23,10 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -34,7 +31,7 @@ import java.util.stream.Stream;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@CacheConfig(cacheNames = "products")
+//@CacheConfig(cacheNames = "products")
 public class ProductServiceImpl implements ProductService {
 
     //    private final SearchService searchHistoryService;
@@ -48,7 +45,11 @@ public class ProductServiceImpl implements ProductService {
 
 
     @Override
-    @CacheEvict(value = {"products", "productById"}, allEntries = true)
+    @CacheEvict(value = {
+            "products", "productById",
+            "allCategories", "categoryById", "categoryWithSubCategories",
+            "allSubCategories", "subCategoriesByCategory"
+    }, allEntries = true)
     public ProductResponse createProduct(Long subCategoryId, List<MultipartFile> images, String name,
                                          String description, BigDecimal oldPrice,
                                          BigDecimal newPrice, List<String> sizes,
@@ -95,7 +96,7 @@ public class ProductServiceImpl implements ProductService {
         // Save product images
         List<ProductImage> productImages = images.stream()
                 .map(image -> {
-                    String imageUrl = awsS3Service.saveImageToS3(image); // changed
+                    String imageUrl = awsS3Service.uploadMedia(image); // changed
                     ProductImage productImage = new ProductImage();
                     productImage.setImageUrl(imageUrl);
                     productImage.setProduct(product);
@@ -121,7 +122,11 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @CacheEvict(value = {"products", "productById"}, allEntries = true)
+    @CacheEvict(value = {
+            "products", "productById",
+            "allCategories", "categoryById", "categoryWithSubCategories",
+            "allSubCategories", "subCategoriesByCategory"
+    }, allEntries = true)
     public ProductResponse updateProduct(Long productId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock) {
         log.info("🔄 Updating product {} and clearing caches", productId);
 
@@ -196,7 +201,7 @@ public class ProductServiceImpl implements ProductService {
             product.getImages().clear();
             List<ProductImage> productImages = images.stream()
                     .map(image -> {
-                        String imageUrl = awsS3Service.saveImageToS3(image);  // changed
+                        String imageUrl = awsS3Service.uploadMedia(image);  // changed
                         ProductImage productImage = new ProductImage();
                         productImage.setImageUrl(imageUrl);
                         productImage.setProduct(product);
@@ -220,7 +225,11 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @CacheEvict(value = {"products", "productById"}, allEntries = true)
+    @CacheEvict(value = {
+            "products", "productById",
+            "allCategories", "categoryById", "categoryWithSubCategories",
+            "allSubCategories", "subCategoriesByCategory"
+    }, allEntries = true)
     public ProductResponse deleteProduct(Long productId) {
         log.info("🗑️ Deleting product {} and clearing caches", productId);
         Product product = productRepo.findById(productId)
@@ -237,7 +246,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @Cacheable(value = "productById", key = "#productId", unless = "#result == null || #result.product == null")
+    @Cacheable(value = "productById", key = "#productId",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.product == null")
     public ProductResponse getProductById(Long productId) {
         log.info("🔍 [CACHE MISS] Fetching product {} from database", productId);
 
@@ -267,7 +278,8 @@ public class ProductServiceImpl implements ProductService {
 
 
     @Override
-    @Cacheable(value = "products", unless = "#result == null || #result.productList == null || #result.productList.empty")
+    @Cacheable(value = "products", condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.productList == null || #result.productList.empty")
     public ProductResponse getAllProduct() {
         log.info("🔍 Fetching all products from database (cache miss)");
 
@@ -569,7 +581,7 @@ public class ProductServiceImpl implements ProductService {
 
 
     @Override
-    public ProductResponse createProductForCompany(Long companyId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock) {
+    public ProductResponse createProductForCompany(UUID companyId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock) {
         User company = userRepo.findById(companyId)
                 .orElseThrow(() -> new NotFoundException("Company not found"));
 
@@ -614,7 +626,7 @@ public class ProductServiceImpl implements ProductService {
         // Save product images
         List<ProductImage> productImages = images.stream()
                 .map(image -> {
-                    String imageUrl = awsS3Service.saveImageToS3(image);
+                    String imageUrl = awsS3Service.uploadMedia(image);
                     ProductImage productImage = new ProductImage();
                     productImage.setImageUrl(imageUrl);
                     productImage.setProduct(product);
@@ -631,7 +643,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductResponse updateProductForCompany(Long productId, Long companyId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock) {
+    public ProductResponse updateProductForCompany(Long productId, UUID companyId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
 
@@ -714,7 +726,7 @@ public class ProductServiceImpl implements ProductService {
             // Add new images
             List<ProductImage> productImages = images.stream()
                     .map(image -> {
-                        String imageUrl = awsS3Service.saveImageToS3(image);  // changed
+                        String imageUrl = awsS3Service.uploadMedia(image);  // changed
                         ProductImage productImage = new ProductImage();
                         productImage.setImageUrl(imageUrl);
                         productImage.setProduct(product);
@@ -731,7 +743,7 @@ public class ProductServiceImpl implements ProductService {
                 .build();
     }
     @Override
-    public ProductResponse getAllProductsByUser(Long userId) {
+    public ProductResponse getAllProductsByUser(UUID userId) {
         User user = userRepo.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found"));
         List<Product> products = productRepo.findByUserId(userId);
@@ -745,7 +757,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductResponse deleteProductForCompany(Long productId, Long companyId) {
+    public ProductResponse deleteProductForCompany(Long productId, UUID companyId) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
 

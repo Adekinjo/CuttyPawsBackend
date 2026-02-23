@@ -1,79 +1,10 @@
-//
-//package com.cuttypaws.security;
-//
-//import lombok.RequiredArgsConstructor;
-//import org.springframework.context.annotation.Bean;
-//import org.springframework.context.annotation.Configuration;
-//import org.springframework.security.authentication.AuthenticationManager;
-//import org.springframework.security.config.Customizer;
-//import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-//import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-//import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-//import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-//import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-//import org.springframework.security.config.http.SessionCreationPolicy;
-//import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-//import org.springframework.security.crypto.password.PasswordEncoder;
-//import org.springframework.security.web.SecurityFilterChain;
-//import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-//
-//@Configuration
-//@EnableWebSecurity
-//@EnableMethodSecurity
-//@RequiredArgsConstructor
-//public class SecurityConfig {
-//
-//    private final JwtAuthFilter jwtAuthFilter;
-//    private final SecurityFilter securityFilter;
-//    private final SecurityHeadersFilter securityHeadersFilter;
-//
-//    @Bean
-//    public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
-//        httpSecurity
-//                .csrf(AbstractHttpConfigurer::disable)
-//                .cors(Customizer.withDefaults())
-//                .authorizeHttpRequests(request -> request
-//                        .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
-//                        .requestMatchers("/customer-support/**").hasAnyAuthority("ROLE_CUSTOMER_SUPPORT","ROLE_ADMIN")
-//                        .requestMatchers("/order/**").hasAnyAuthority("ROLE_ADMIN","ROLE_USER", "ROLE_CUSTOMER_SUPPORT", "ROLE_COMPANY")
-//                        .requestMatchers("/company/**").hasAnyAuthority("ROLE_COMPANY","ROLE_ADMIN", "ROLE_CUSTOMER_SUPPORT")
-//                        .requestMatchers("/auth/**","/order/**","/deals/**", "/reviews/**", "/category/**", "/sub-category/**", "/product/**", "/search/**", "/newsletter/**").permitAll()
-//                        .requestMatchers("/payment/**","/order/create").authenticated()
-//                        .anyRequest().authenticated()
-//                )
-//                .sessionManagement(manager -> manager
-//                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-//                )
-//                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-//                .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
-//                .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class);
-//
-//        return httpSecurity.build();
-//    }
-//
-//    @Bean
-//    public PasswordEncoder passwordEncoder() {
-//        return new BCryptPasswordEncoder(12);
-//    }
-//
-//    @Bean
-//    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
-//        return authenticationConfiguration.getAuthenticationManager();
-//    }
-//}
-
-
-
-
-
-
 package com.cuttypaws.security;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -108,20 +39,32 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"status\":401,\"message\":\"Please log in to continue\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"status\":403,\"message\":\"You do not have permission to access this resource\"}");
+                        }))
+
+
                 .authorizeHttpRequests(req -> req
                         // WEBSOCKET
-                        .requestMatchers("/ws/**", "/topic/**", "/queue/**", "/user/**").permitAll()
+                        .requestMatchers("/ws/**", "/topic/**", "/queue/**").permitAll()
 
                         // PUBLIC AUTH & PUBLIC CONTENT
                         .requestMatchers(
                                 "/auth/**",
-                                "/post/all",
                                 "/post/get-all",
                                 "/likes/**",
                                 "/comments/**",
                                 "/deals/**",
                                 "/reviews/**",
-                                "/category/**",
+                                "/category/get-all",
                                 "/sub-category/**",
                                 "/product/**",
                                 "/search/**",
@@ -139,11 +82,14 @@ public class SecurityConfig {
                                 "/pet/**",
                                 "/users/my-info",
                                 "/users/update-profile-image",
-                                "/users/update"
+                                "/users/update-cover-image",
+                                "/users/update",
+                                "/orders/**"
                         ).authenticated()
 
                         // E-COMMERCE PROTECTED ENDPOINTS
                         .requestMatchers("/payment/**", "/order/create").authenticated()
+                        .requestMatchers("/auth/update-user-profile").authenticated()
 
                         // ROLE-BASED ACCESS
                         .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
@@ -157,8 +103,12 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterAfter(securityFilter, JwtAuthFilter.class)
+                .addFilterAfter(securityHeadersFilter, SecurityFilter.class);
+
+//                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+//                .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
+//                .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

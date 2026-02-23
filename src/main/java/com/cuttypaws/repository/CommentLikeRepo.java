@@ -8,15 +8,16 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface CommentLikeRepo extends JpaRepository<CommentLike, Long> {
 
-    Optional<CommentLike> findByUserIdAndCommentId(Long userId, Long commentId);
-    boolean existsByUserIdAndCommentId(Long userId, Long commentId);
+    Optional<CommentLike> findByUserIdAndCommentId(UUID userId, Long commentId);
+    boolean existsByUserIdAndCommentId(UUID userId, Long commentId);
     Long countByCommentId(Long commentId);
-    void deleteByUserIdAndCommentId(Long userId, Long commentId);
-    List<CommentLike> findByUserId(Long userId);
+    void deleteByUserIdAndCommentId(UUID userId, Long commentId);
+    List<CommentLike> findByUserId(UUID userId);
     List<CommentLike> findByCommentId(Long commentId);
 
     @Query("SELECT cl.reactionType, COUNT(cl) FROM CommentLike cl WHERE cl.comment.id = :commentId GROUP BY cl.reactionType")

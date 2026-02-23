@@ -6,7 +6,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Data
@@ -24,10 +26,10 @@ public class Post extends BaseEntity {
     private User owner;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PostImage> images;
+    private List<PostMedia> media;
 
-    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PostLike> likes;
+    @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private Set<PostLike> likes = new HashSet<>();
 
     private  Integer CommentCount;
 
@@ -43,5 +45,4 @@ public class Post extends BaseEntity {
                 like.getUser() != null && like.getUser().getId().equals(userId));
     }
 }
-
 

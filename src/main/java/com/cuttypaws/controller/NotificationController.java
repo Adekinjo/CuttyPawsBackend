@@ -9,6 +9,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/notifications")
 @RequiredArgsConstructor
@@ -18,7 +20,7 @@ public class NotificationController {
 
     @GetMapping
     public ResponseEntity<NotificationResponse> getMyNotifications(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @RequestParam(defaultValue="0") int page,
             @RequestParam(defaultValue="20") int size
     ) {
@@ -36,7 +38,7 @@ public class NotificationController {
     }
 
     @GetMapping("/unread-count")
-    public ResponseEntity<NotificationResponse> unreadCount(@CurrentUser Long userId) {
+    public ResponseEntity<NotificationResponse> unreadCount(@CurrentUser UUID userId) {
         long count = notificationService.getUnreadCount(userId);
         return ResponseEntity.ok(NotificationResponse.builder()
                 .status(200)
@@ -47,7 +49,7 @@ public class NotificationController {
 
     @PutMapping("/{id}/read")
     public ResponseEntity<NotificationResponse> markRead(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long id
     ) {
         notificationService.markAsRead(userId, id);
@@ -58,7 +60,7 @@ public class NotificationController {
     }
 
     @PutMapping("/read-all")
-    public ResponseEntity<NotificationResponse> markAllRead(@CurrentUser Long userId) {
+    public ResponseEntity<NotificationResponse> markAllRead(@CurrentUser UUID userId) {
         notificationService.markAllAsRead(userId);
         return ResponseEntity.ok(NotificationResponse.builder()
                 .status(200)

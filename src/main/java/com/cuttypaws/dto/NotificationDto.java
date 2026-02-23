@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -15,9 +16,9 @@ import java.time.LocalDateTime;
 public class NotificationDto {
     private Long id;
 
-    private Long recipientId;
+    private UUID recipientId;
 
-    private Long senderId;
+    private UUID senderId;
     private String senderName;
     private String senderProfileImage;
 

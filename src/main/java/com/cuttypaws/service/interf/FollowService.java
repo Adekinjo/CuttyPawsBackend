@@ -3,15 +3,17 @@ package com.cuttypaws.service.interf;
 import com.cuttypaws.response.FollowResponse;
 import org.springframework.data.domain.Pageable;
 
+import java.util.UUID;
+
 public interface FollowService {
-    FollowResponse followUser(Long targetUserId);
-    FollowResponse unfollowUser(Long targetUserId);
-    FollowResponse getFollowStats(Long userId);
-    FollowResponse getFollowers(Long userId, Pageable pageable);
-    FollowResponse getFollowing(Long userId, Pageable pageable);
-    FollowResponse checkFollowStatus(Long targetUserId);
-    FollowResponse muteUser(Long targetUserId);
-    FollowResponse unmuteUser(Long targetUserId);
-    FollowResponse getMutualFollowers(Long targetUserId);
+    FollowResponse followUser(UUID targetUserId);
+    FollowResponse unfollowUser(UUID targetUserId);
+    FollowResponse getFollowStats(UUID userId);
+    FollowResponse getFollowers(UUID userId, Pageable pageable);
+    FollowResponse getFollowing(UUID userId, Pageable pageable);
+    FollowResponse checkFollowStatus(UUID targetUserId);
+    FollowResponse muteUser(UUID targetUserId);
+    FollowResponse unmuteUser(UUID targetUserId);
+    FollowResponse getMutualFollowers(UUID targetUserId);
 }
 

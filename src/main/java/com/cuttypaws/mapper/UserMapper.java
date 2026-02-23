@@ -17,15 +17,23 @@ public class UserMapper {
 
     public UserDto mapUserToDtoBasic(User user){
         UserDto userDto = new UserDto();
-        userDto.setId(user.getId());
+        userDto.setId(user.getId().toString());
         userDto.setPhoneNumber(user.getPhoneNumber());
         userDto.setEmail(user.getEmail());
         if (user.getCompanyName() != null) {
             userDto.setCompanyName(user.getCompanyName());
         }
+        userDto.setProfileImageUrl(user.getProfileImageUrl());
+        userDto.setCoverImageUrl(user.getCoverImageUrl());
         userDto.setRegDate(user.getCreatedAt());
         userDto.setRole(user.getUserRole().name());
         userDto.setName(user.getName());
+
+        userDto.setIsBlocked(user.getIsBlocked());
+        userDto.setBlockedReason(user.getBlockedReason());
+        userDto.setBlockedAt(user.getBlockedAt());
+        userDto.setIsActive(user.isActive());
+
         return userDto;
 
     }

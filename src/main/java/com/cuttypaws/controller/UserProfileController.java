@@ -8,6 +8,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
@@ -17,21 +19,21 @@ public class UserProfileController {
     private final UserProfileService userProfileService;
 
     @GetMapping("/{userId}/profile")
-    public ResponseEntity<UserResponse> getUserProfile(@PathVariable Long userId) {
+    public ResponseEntity<UserResponse> getUserProfile(@PathVariable UUID userId) {
         log.info("🎯 GET USER PROFILE REQUEST - User ID: {}", userId);
         UserResponse response = userProfileService.getUserProfile(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
     @GetMapping("/{userId}/posts")
-    public ResponseEntity<UserResponse> getUserPosts(@PathVariable Long userId) {
+    public ResponseEntity<UserResponse> getUserPosts(@PathVariable UUID userId) {
         log.info("🎯 GET USER POSTS REQUEST - User ID: {}", userId);
         UserResponse response = userProfileService.getUserPosts(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
     @GetMapping("/{userId}/stats")
-    public ResponseEntity<UserResponse> getUserStats(@PathVariable Long userId) {
+    public ResponseEntity<UserResponse> getUserStats(@PathVariable UUID userId) {
         log.info("🎯 GET USER STATS REQUEST - User ID: {}", userId);
         UserResponse response = userProfileService.getUserStats(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
@@ -40,7 +42,7 @@ public class UserProfileController {
     @PostMapping("/{userId}/block")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<UserResponse> blockUser(
-            @PathVariable Long userId,
+            @PathVariable UUID userId,
             @RequestParam String reason
     ) {
         log.info("🚫 BLOCK USER REQUEST - User ID: {}, Reason: {}", userId, reason);
@@ -50,7 +52,7 @@ public class UserProfileController {
 
     @PostMapping("/{userId}/unblock")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<UserResponse> unblockUser(@PathVariable Long userId) {
+    public ResponseEntity<UserResponse> unblockUser(@PathVariable UUID userId) {
         log.info("✅ UNBLOCK USER REQUEST - User ID: {}", userId);
         UserResponse response = userProfileService.unblockUser(userId);
         return ResponseEntity.status(response.getStatus()).body(response);

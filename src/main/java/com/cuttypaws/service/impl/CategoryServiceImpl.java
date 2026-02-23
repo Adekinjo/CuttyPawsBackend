@@ -34,11 +34,15 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryRepo categoryRepo;
     private final CategoryMapper categoryMapper;
     private final AwsS3Service awsS3Service;
-    private final CacheMonitorService cacheMonitorService;
+    //private final CacheMonitorService cacheMonitorService;
 
     @Override
     @Transactional
-    @CacheEvict(value = {"allCategories", "categoryById", "allSubCategories", "subCategoriesByCategory"}, allEntries = true)
+    @CacheEvict(value = {
+            "allCategories", "categoryById",
+            "allSubCategories", "subCategoriesByCategory",
+            "categoryWithSubCategories", "categorySearch"
+    }, allEntries = true)
     public CategoryResponse createCategory(CategoryDto categoryRequest, MultipartFile imageFile) {
         log.info("🆕 Creating new category: {}", categoryRequest.getName());
 
@@ -48,7 +52,7 @@ public class CategoryServiceImpl implements CategoryService {
         // Upload image to S3 if provided
         if (imageFile != null && !imageFile.isEmpty()) {
             try {
-                String imageUrl = awsS3Service.saveImageToS3(imageFile);
+                String imageUrl = awsS3Service.uploadMedia(imageFile);
                 category.setImageUrl(imageUrl);
                 log.info("📸 Image uploaded successfully: {}", imageUrl);
             } catch (Exception e) {
@@ -85,7 +89,11 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
-    @CacheEvict(value = {"allCategories", "categoryById", "allSubCategories", "subCategoriesByCategory"}, allEntries = true)
+    @CacheEvict(value = {
+            "allCategories", "categoryById",
+            "allSubCategories", "subCategoriesByCategory",
+            "categoryWithSubCategories", "categorySearch"
+    }, allEntries = true)
     public CategoryResponse updateCategory(Long categoryId, CategoryDto categoryRequest, MultipartFile imageFile) {
         log.info("🔄 Updating category: {}", categoryId);
 
@@ -101,7 +109,7 @@ public class CategoryServiceImpl implements CategoryService {
         // Update image if provided
         if (imageFile != null && !imageFile.isEmpty()) {
             try {
-                String imageUrl = awsS3Service.saveImageToS3(imageFile);
+                String imageUrl = awsS3Service.uploadMedia(imageFile);
                 category.setImageUrl(imageUrl);
                 log.info("📸 Category image updated successfully: {}", imageUrl);
             } catch (Exception e) {
@@ -159,7 +167,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    @Cacheable("allCategories")
+    @Cacheable(value = "allCategories", condition = "@cacheToggleService.isEnabled()")
     public CategoryResponse getAllCategory() {
         log.info("🔍 [CACHE MISS] Fetching ALL categories from database");
 
@@ -180,7 +188,8 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    @Cacheable(value = "categoryById", key = "#categoryId")
+    @Cacheable(value = "categoryById", key = "#categoryId",
+            condition = "@cacheToggleService.isEnabled()")
     public CategoryResponse getCategoryById(Long categoryId) {
         log.info("🔍 [CACHE MISS] Fetching category by ID: {}", categoryId);
 
@@ -200,7 +209,10 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    @CacheEvict(value = {"allCategories", "categoryById", "allSubCategories", "subCategoriesByCategory"}, allEntries = true)
+    @CacheEvict(value = {"allCategories", "categoryById",
+            "allSubCategories", "subCategoriesByCategory",
+            "categoryWithSubCategories", "categorySearch"
+    }, allEntries = true)
     public CategoryResponse deleteCategory(Long categoryId) {
         log.info("🗑️ Deleting category: {}", categoryId);
 

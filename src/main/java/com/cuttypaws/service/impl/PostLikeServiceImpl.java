@@ -12,10 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,7 +28,7 @@ public class PostLikeServiceImpl implements PostLikeService {
 
     @Override
     @Transactional
-    public PostLikeResponse reactToPost(Long userId, Long postId, PostLike.ReactionType reactionType) {
+    public PostLikeResponse reactToPost(UUID userId, Long postId, PostLike.ReactionType reactionType) {
         try {
             log.info("Reacting to post - User: {}, Post: {}, Reaction: {}", userId, postId, reactionType);
 
@@ -95,7 +92,7 @@ public class PostLikeServiceImpl implements PostLikeService {
 
     @Override
     @Transactional
-    public PostLikeResponse removeReaction(Long userId, Long postId) {
+    public PostLikeResponse removeReaction(UUID userId, Long postId) {
         try {
             Optional<PostLike> existingReaction = postLikeRepo.findByUserIdAndPostId(userId, postId);
 
@@ -163,7 +160,7 @@ public class PostLikeServiceImpl implements PostLikeService {
 
     @Override
     @Transactional(readOnly = true)
-    public PostLikeResponse checkUserReaction(Long userId, Long postId) {
+    public PostLikeResponse checkUserReaction(UUID userId, Long postId) {
         try {
             Optional<PostLike> userReaction = postLikeRepo.findByUserIdAndPostId(userId, postId);
 
@@ -210,12 +207,12 @@ public class PostLikeServiceImpl implements PostLikeService {
 
     // Existing methods for backward compatibility
     @Override
-    public PostLikeResponse likePost(Long userId, Long postId) {
+    public PostLikeResponse likePost(UUID userId, Long postId) {
         return reactToPost(userId, postId, PostLike.ReactionType.LIKE);
     }
 
     @Override
-    public PostLikeResponse unlikePost(Long userId, Long postId) {
+    public PostLikeResponse unlikePost(UUID userId, Long postId) {
         return removeReaction(userId, postId);
     }
 
@@ -225,7 +222,7 @@ public class PostLikeServiceImpl implements PostLikeService {
     }
 
     @Override
-    public PostLikeResponse getUserLikedPosts(Long userId) {
+    public PostLikeResponse getUserLikedPosts(UUID userId) {
         try {
             List<PostLike> userLikes = postLikeRepo.findByUserId(userId);
             List<PostDto> likedPosts = userLikes.stream()
@@ -249,7 +246,7 @@ public class PostLikeServiceImpl implements PostLikeService {
     }
 
     @Override
-    public PostLikeResponse checkIfUserLikedPost(Long userId, Long postId) {
+    public PostLikeResponse checkIfUserLikedPost(UUID userId, Long postId) {
         return checkUserReaction(userId, postId);
     }
 }

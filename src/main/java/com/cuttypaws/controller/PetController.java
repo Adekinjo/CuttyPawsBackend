@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 
 @RestController
 @RequestMapping("/pet")
@@ -18,7 +20,7 @@ public class PetController {
 
     @PostMapping("/create")
     public ResponseEntity<PetResponse> createPet(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @ModelAttribute PetRequestDto request
     ) {
         return ResponseEntity.ok(petService.createPet(userId, request));
@@ -43,7 +45,7 @@ public class PetController {
     }
 
     @GetMapping("/my-pets")
-    public ResponseEntity<PetResponse> getMyPets(@CurrentUser Long userId) {
+    public ResponseEntity<PetResponse> getMyPets(@CurrentUser UUID userId) {
         return ResponseEntity.ok(petService.getMyPets(userId));
     }
 

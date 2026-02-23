@@ -1,7 +1,7 @@
 package com.cuttypaws.repository;
 
-import com.cuttypaws.entity.PostImage;
+import com.cuttypaws.entity.PostMedia;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface PostImageRepo extends JpaRepository<PostImage, Long> {
+public interface PostImageRepo extends JpaRepository<PostMedia, Long> {
 }

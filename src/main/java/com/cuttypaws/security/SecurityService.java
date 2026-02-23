@@ -26,6 +26,7 @@ public class SecurityService {
     private final SecurityEventRepo securityEventRepo;
     private final UserRepo userRepo;
     private final EmailService emailService;
+    private final SecurityHitCounter hitCounter;
 
     // Thread-safe IP blocking
     private final Map<String, BlockedIPInfo> blockedIPs = new ConcurrentHashMap<>();
@@ -260,30 +261,97 @@ public class SecurityService {
     /**
      * MAIN SECURITY EVENT LOGGING - COMPLETE DETAILS
      */
+//    @Async
+//    @Transactional
+//    public void logSecurityEvent(String eventType, String description, String ipAddress, String userEmail) {
+//        try {
+//            // Get complete user information
+//            Map<String, Object> userInfo = getUserCompleteInfo(userEmail);
+//
+//            // Get complete IP location information
+//            Map<String, String> locationInfo = getCompleteIPLocation(ipAddress);
+//
+//            // Create security event with ALL details
+//            SecurityEvent event = createCompleteSecurityEvent(eventType, description, ipAddress, userEmail, userInfo, locationInfo);
+//            securityEventRepo.save(event);
+//
+//            log.info("Complete security event logged: {} - {} - {}", eventType, ipAddress, userEmail);
+//
+//            // Send COMPLETE alert email
+//            sendCompleteSecurityAlert(event, userInfo, locationInfo);
+//
+//        } catch (Exception e) {
+//            log.error("Failed to log complete security event: {}", e.getMessage());
+//            createFallbackEvent(eventType, description, ipAddress, userEmail);
+//        }
+//    }
+
     @Async
     @Transactional
     public void logSecurityEvent(String eventType, String description, String ipAddress, String userEmail) {
         try {
-            // Get complete user information
+            // 1) Get user info (cheap)
             Map<String, Object> userInfo = getUserCompleteInfo(userEmail);
 
-            // Get complete IP location information
-            Map<String, String> locationInfo = getCompleteIPLocation(ipAddress);
+            // 2) Save event immediately (DON'T do heavy external calls first)
+            // For normal events, avoid geo lookup (expensive + can be slow)
+            Map<String, String> placeholderLocation = new HashMap<>();
+            placeholderLocation.put("country", "Unknown");
+            placeholderLocation.put("city", "Unknown");
+            placeholderLocation.put("isp", "Unknown");
+            placeholderLocation.put("coordinates", "N/A");
+            placeholderLocation.put("timezone", "N/A");
+            placeholderLocation.put("status", "Not Looked Up");
 
-            // Create security event with ALL details
-            SecurityEvent event = createCompleteSecurityEvent(eventType, description, ipAddress, userEmail, userInfo, locationInfo);
+            SecurityEvent event = createCompleteSecurityEvent(
+                    eventType,
+                    description,
+                    ipAddress,
+                    userEmail,
+                    userInfo,
+                    placeholderLocation
+            );
             securityEventRepo.save(event);
 
-            log.info("Complete security event logged: {} - {} - {}", eventType, ipAddress, userEmail);
+            // 3) Only apply "10 hits → email" to malicious/security events
+            if (!isMaliciousType(eventType)) {
+                log.info("Security event logged (non-malicious): type={} ip={} email={}", eventType, ipAddress, userEmail);
+                return;
+            }
 
-            // Send COMPLETE alert email
-            sendCompleteSecurityAlert(event, userInfo, locationInfo);
+            // 4) Redis hit counting within a time window
+            // Example: 30-minute rolling window
+            // Key includes ip + eventType so "MALICIOUS_URL" is tracked separately from "MALICIOUS_USER_AGENT"
+            String counterKey = ipAddress + ":" + eventType;
+            long count = hitCounter.incrementWithTtl(counterKey, java.time.Duration.ofMinutes(30));
+
+            log.warn("Malicious hit recorded: type={} ip={} email={} count={}", eventType, ipAddress, userEmail, count);
+
+            // 5) Send email ONLY at exactly count == 10 (prevents spamming)
+            if (count == 10) {
+                Map<String, String> locationInfo = getCompleteIPLocation(ipAddress);
+                sendCompleteSecurityAlert(event, userInfo, locationInfo);
+            }
 
         } catch (Exception e) {
-            log.error("Failed to log complete security event: {}", e.getMessage());
+            log.error("Failed to log security event: {}", e.getMessage(), e);
             createFallbackEvent(eventType, description, ipAddress, userEmail);
         }
     }
+
+    private boolean isMaliciousType(String eventType) {
+        if (eventType == null) return false;
+        String t = eventType.toUpperCase(Locale.ROOT);
+
+        return t.contains("MALICIOUS")
+                || t.contains("XSS")
+                || t.contains("SQL")
+                || t.contains("BRUTE_FORCE")
+                || t.contains("BLOCKED")
+                || t.contains("RATE_LIMIT");
+    }
+
+
 
     private SecurityEvent createCompleteSecurityEvent(String eventType, String description, String ipAddress,
                                                       String userEmail, Map<String, Object> userInfo,

@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -15,8 +16,9 @@ public class PostDto {
 
     private Long id;
     private String caption;
+    private List<MediaDto> media;
 
-    private Long ownerId;
+    private UUID ownerId;
     private String ownerName;
     private String ownerProfileImage;
 
@@ -29,4 +31,3 @@ public class PostDto {
     private String createdAt;
     private String updatedAt;
 }
-

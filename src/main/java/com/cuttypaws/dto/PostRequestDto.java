@@ -9,5 +9,7 @@ import java.util.List;
 public class PostRequestDto {
 
     private String caption;
-    private List<MultipartFile> images;
+    private List<MultipartFile> media;
+    private List<Long> mediaToDelete;
 }
+

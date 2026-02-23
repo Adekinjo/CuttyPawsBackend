@@ -14,10 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +27,7 @@ public class CommentLikeServiceImpl implements CommentLikeService {
 
     @Override
     @Transactional
-    public CommentResponse reactToComment(Long userId, Long commentId, CommentLike.ReactionType reactionType) {
+    public CommentResponse reactToComment(UUID userId, Long commentId, CommentLike.ReactionType reactionType) {
         try {
             log.info("Reacting to comment - User: {}, Comment: {}, Reaction: {}", userId, commentId, reactionType);
 
@@ -82,7 +79,7 @@ public class CommentLikeServiceImpl implements CommentLikeService {
 
     @Override
     @Transactional
-    public CommentResponse removeReaction(Long userId, Long commentId) {
+    public CommentResponse removeReaction(UUID userId, Long commentId) {
         try {
             Optional<CommentLike> existingReaction = commentLikeRepo.findByUserIdAndCommentId(userId, commentId);
 
@@ -144,7 +141,7 @@ public class CommentLikeServiceImpl implements CommentLikeService {
 
     @Override
     @Transactional(readOnly = true)
-    public CommentResponse checkUserReaction(Long userId, Long commentId) {
+    public CommentResponse checkUserReaction(UUID userId, Long commentId) {
         try {
             Optional<CommentLike> userReaction = commentLikeRepo.findByUserIdAndCommentId(userId, commentId);
 
@@ -191,12 +188,12 @@ public class CommentLikeServiceImpl implements CommentLikeService {
 
     // Simple like/unlike for backward compatibility
     @Override
-    public CommentResponse likeComment(Long userId, Long commentId) {
+    public CommentResponse likeComment(UUID userId, Long commentId) {
         return reactToComment(userId, commentId, CommentLike.ReactionType.LIKE);
     }
 
     @Override
-    public CommentResponse unlikeComment(Long userId, Long commentId) {
+    public CommentResponse unlikeComment(UUID userId, Long commentId) {
         return removeReaction(userId, commentId);
     }
 }

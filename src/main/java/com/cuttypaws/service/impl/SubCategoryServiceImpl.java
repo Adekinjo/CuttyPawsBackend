@@ -30,10 +30,14 @@ public class SubCategoryServiceImpl implements SubCategoryService {
     private final CategoryRepo categoryRepo;
     private final SubCategoryMapper subCategoryMapper;
     private final AwsS3Service awsS3Service;
-    private final CacheMonitorService cacheMonitorService;
+    //private final CacheMonitorService cacheMonitorService;
 
     @Override
-    @CacheEvict(value = {"allCategories", "categoryById", "subCategoryById"}, allEntries = true)
+    @CacheEvict(value = {
+            "allCategories", "categoryById", "categoryWithSubCategories",
+            "allSubCategories", "subCategoryById", "subCategorySearch",
+            "subCategoriesByCategory"
+    }, allEntries = true)
     public SubCategoryResponse createSubCategory(SubCategoryDto subCategoryRequest, MultipartFile imageFile) {
         //log.info("🆕 Creating new subcategory: {}", subCategoryRequest.getName());
 
@@ -47,7 +51,7 @@ public class SubCategoryServiceImpl implements SubCategoryService {
         // Upload image to S3 if provided
         if (imageFile != null && !imageFile.isEmpty()) {
             try {
-                String imageUrl = awsS3Service.saveImageToS3(imageFile);
+                String imageUrl = awsS3Service.uploadMedia(imageFile);
                 subCategory.setImageUrl(imageUrl);
                 //log.info("📸 Subcategory image uploaded successfully: {}", imageUrl);
             } catch (Exception e) {
@@ -68,7 +72,11 @@ public class SubCategoryServiceImpl implements SubCategoryService {
     }
 
     @Override
-    @CacheEvict(value = {"allCategories", "categoryById", "subCategoryById"}, allEntries = true)
+    @CacheEvict(value = {
+            "allCategories", "categoryById", "categoryWithSubCategories",
+            "allSubCategories", "subCategoryById", "subCategorySearch",
+            "subCategoriesByCategory"
+    }, allEntries = true)
     public SubCategoryResponse updateSubCategory(Long subCategoryId, SubCategoryDto subCategoryRequest, MultipartFile imageFile) {
         //log.info("🔄 Updating subcategory: {}", subCategoryId);
 
@@ -83,7 +91,7 @@ public class SubCategoryServiceImpl implements SubCategoryService {
         if (imageFile != null && !imageFile.isEmpty()) {
             try {
                 //log.info("📤 Uploading new image for subcategory: {}", subCategoryId);
-                String imageUrl = awsS3Service.saveImageToS3(imageFile);
+                String imageUrl = awsS3Service.uploadMedia(imageFile);
                 subCategory.setImageUrl(imageUrl);
                 //log.info("📸 Subcategory image updated successfully: {}", imageUrl);
             } catch (Exception e) {
@@ -107,7 +115,11 @@ public class SubCategoryServiceImpl implements SubCategoryService {
     }
 
     @Override
-    @CacheEvict(value = {"allCategories", "categoryById", "subCategoryById", "subCategoriesByCategory"}, allEntries = true)
+    @CacheEvict(value = {
+            "allCategories", "categoryById", "categoryWithSubCategories",
+            "allSubCategories", "subCategoryById", "subCategorySearch",
+            "subCategoriesByCategory"
+    }, allEntries = true)
     public SubCategoryResponse deleteSubCategory(Long subCategoryId) {
         //log.info("🗑️ Deleting subcategory: {}", subCategoryId);
 
@@ -125,7 +137,8 @@ public class SubCategoryServiceImpl implements SubCategoryService {
     }
 
     @Override
-    @Cacheable(value = "subCategoryById", key = "#subCategoryId")
+    @Cacheable(value = "subCategoryById", key = "#subCategoryId",
+            condition = "@cacheToggleService.isEnabled()")
     public SubCategoryResponse getSubCategoryById(Long subCategoryId) {
         log.info("🔍 [CACHE MISS] Fetching subcategory by ID: {}", subCategoryId);
 
@@ -146,7 +159,7 @@ public class SubCategoryServiceImpl implements SubCategoryService {
     }
 
     @Override
-    @Cacheable(value = "allSubCategories")
+    @Cacheable(value = "allSubCategories", condition = "@cacheToggleService.isEnabled()")
     public SubCategoryResponse getAllSubCategories() {
         log.info("🔍 [CACHE MISS] Fetching ALL subcategories from database");
 

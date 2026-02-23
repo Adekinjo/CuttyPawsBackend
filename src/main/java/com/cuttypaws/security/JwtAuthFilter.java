@@ -33,11 +33,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         // Skip JWT validation for public endpoints
         if (request.getRequestURI().startsWith("/auth/") ||
+                request.getRequestURI().equals("/post/get-all") ||
                 request.getRequestURI().startsWith("/post/get-all/") ||
                 request.getRequestURI().startsWith("/comments/") ||
-                request.getRequestURI().startsWith("/likes/") ||
+                request.getRequestURI().startsWith("/products/") ||
                 request.getRequestURI().startsWith("/product/suggestions") ||
                 request.getRequestURI().startsWith("/product/search") ||
+                request.getRequestURI().startsWith("/category/get-all") ||
                 request.getRequestURI().startsWith("/search") ||
                 request.getRequestURI().startsWith("/ws/") ||
                 request.getRequestURI().startsWith("/topic/") ||
@@ -68,12 +70,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 }
             } catch (ExpiredJwtException e) {
-                log.error("JWT token expired: {}", e.getMessage());
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.setContentType("application/json");
-                response.getWriter().write("{\"error\": \"Token expired. Please log in again.\"}");
+                response.getWriter().write("{\"status\":401,\"message\":\"Token expired. Please log in again.\"}");
+                return;
+            } catch (Exception e) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json");
+                response.getWriter().write("{\"status\":401,\"message\":\"Invalid token. Please log in again.\"}");
                 return;
             }
+
         }
 
         filterChain.doFilter(request, response);

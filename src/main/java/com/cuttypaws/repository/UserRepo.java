@@ -7,15 +7,16 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface UserRepo extends JpaRepository<User, Long> {
+public interface UserRepo extends JpaRepository<User, UUID> {
 
     Optional<User> findByEmail(String email);
-    Optional<User> findById(Long userId);
+    Optional<User> findById(UUID userId);
     Optional<User> findByPhoneNumber(String phoneNumber);
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.address WHERE u.id = :id")
-    Optional<User> findByIdWithAddress(@Param("id") Long id);
+    Optional<User> findByIdWithAddress(@Param("id") UUID id);
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.address")
     List<User> findAllWithAddress();
@@ -25,7 +26,7 @@ public interface UserRepo extends JpaRepository<User, Long> {
             "LEFT JOIN FETCH u.orderItemsList o " +
             "LEFT JOIN FETCH o.product " +
             "WHERE u.id = :id")
-    Optional<User> findByIdWithAddressAndOrders(@Param("id") Long id);
+    Optional<User> findByIdWithAddressAndOrders(@Param("id") UUID id);
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.address LEFT JOIN FETCH u.orderItemsList")
     List<User> findAllWithAddressAndOrders();
@@ -34,7 +35,7 @@ public interface UserRepo extends JpaRepository<User, Long> {
     List<User> findAllByRoleCompany();
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.products WHERE u.id = :id AND u.userRole = com.cuttypaws.enums.UserRole.ROLE_COMPANY")
-    Optional<User> findCompanyWithProductsById(@Param("id") Long id);
+    Optional<User> findCompanyWithProductsById(@Param("id") UUID id);
 
 }
 

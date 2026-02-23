@@ -8,8 +8,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/user")
@@ -34,9 +36,19 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUserProfile(userDto));
     }
 
+    @PutMapping(value = "/update-profile-image", consumes = "multipart/form-data")
+    public ResponseEntity<UserResponse> updateProfileImage(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(userService.updateProfileImage(file));
+    }
+
+    @PutMapping(value = "/update-cover-image", consumes = "multipart/form-data")
+    public ResponseEntity<UserResponse> updateCoverImage(@RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(userService.updateCoverImage(file));
+    }
+
     // to get a user by id
     @GetMapping("/{id}")
-    public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserDto> getUserById(@PathVariable UUID id) {
         UserDto userDto = userService.getUserByIdWithAddress(id);
         return userDto != null ? ResponseEntity.ok(userDto) : ResponseEntity.notFound().build();
     }

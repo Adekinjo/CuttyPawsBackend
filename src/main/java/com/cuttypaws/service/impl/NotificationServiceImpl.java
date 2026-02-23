@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -31,8 +32,8 @@ public class NotificationServiceImpl implements NotificationService {
     // COMMON SENDER (NO DUPLICATE)
     // ==============================
     private void sendNotification(
-            Long recipientId,
-            Long senderId,
+            UUID recipientId,
+            UUID senderId,
             NotificationType type,
             String message,
             Long postId,
@@ -104,7 +105,7 @@ public class NotificationServiceImpl implements NotificationService {
     // ==============================
     @Override
     @Transactional(readOnly = true)
-    public Page<NotificationDto> getMyNotifications(Long userId, int page, int size) {
+    public Page<NotificationDto> getMyNotifications(UUID userId, int page, int size) {
         try {
             log.info("🔍 Fetching notifications for user: {}, page: {}, size: {}", userId, page, size);
 
@@ -124,13 +125,13 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional(readOnly = true)
-    public long getUnreadCount(Long userId) {
+    public long getUnreadCount(UUID userId) {
         return notificationRepo.countByRecipientIdAndReadFalse(userId);
     }
 
     @Override
     @Transactional
-    public void markAsRead(Long userId, Long notificationId) {
+    public void markAsRead(UUID userId, Long notificationId) {
         Notification n = notificationRepo.findById(notificationId)
                 .orElseThrow(() -> new NotFoundException("Notification not found"));
 
@@ -143,7 +144,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
-    public void markAllAsRead(Long userId) {
+    public void markAllAsRead(UUID userId) {
         // FIX: Use simpler query without ordering for updates
         List<Notification> unreadNotifications = notificationRepo.findByRecipientIdAndReadFalse(userId);
 
@@ -159,12 +160,12 @@ public class NotificationServiceImpl implements NotificationService {
     // TRIGGERS
     // ==============================
     @Override
-    public void notifyFollowersNewPost(Post post, User owner, List<Long> followerIds) {
+    public void notifyFollowersNewPost(Post post, User owner, List<UUID> followerIds) {
         if (followerIds == null || followerIds.isEmpty()) return;
 
         log.info("📢 Notifying {} followers about new post: {}", followerIds.size(), post.getId());
 
-        for (Long followerId : followerIds) {
+        for (UUID followerId : followerIds) {
             sendNotification(
                     followerId,
                     owner.getId(),
@@ -224,7 +225,7 @@ public class NotificationServiceImpl implements NotificationService {
         );
     }
     @Override
-    public void sendFollowNotification(Long recipientId, Long senderId) {
+    public void sendFollowNotification(UUID recipientId, UUID senderId) {
         sendNotification(
                 recipientId,               // who receives the notification
                 senderId,                  // follower

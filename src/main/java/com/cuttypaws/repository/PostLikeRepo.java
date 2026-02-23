@@ -8,19 +8,20 @@ import org.springframework.stereotype.Repository;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface PostLikeRepo extends JpaRepository<PostLike, Long> {
 
-    Optional<PostLike> findByUserIdAndPostId(Long userId, Long postId);
-    boolean existsByUserIdAndPostId(Long userId, Long postId);
+    Optional<PostLike> findByUserIdAndPostId(UUID userId, Long postId);
+    boolean existsByUserIdAndPostId(UUID userId, Long postId);
     Long countByPostId(Long postId);
-    void deleteByUserIdAndPostId(Long userId, Long postId);
-    List<PostLike> findByUserId(Long userId);
+    void deleteByUserIdAndPostId(UUID userId, Long postId);
+    List<PostLike> findByUserId(UUID userId);
     List<PostLike> findByPostId(Long postId);
 
     @Query("SELECT COUNT(pl) FROM PostLike pl WHERE pl.post.owner.id = :userId")
-    Long countLikesByUserId(@Param("userId") Long userId);
+    Long countLikesByUserId(@Param("userId") UUID userId);
 
     // New methods for reactions
     @Query("SELECT pl.reactionType, COUNT(pl) FROM PostLike pl WHERE pl.post.id = :postId GROUP BY pl.reactionType")

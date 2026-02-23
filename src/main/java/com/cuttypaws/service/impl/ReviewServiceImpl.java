@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -82,7 +83,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public List<ReviewDto> getReviewsByUserId(Long userId) {
+    public List<ReviewDto> getReviewsByUserId(UUID userId) {
         log.info("Retrieving reviews by user ID: {}", userId);
         List<Review> reviews = reviewRepository.findByUserId(userId);
         return reviews.stream()
@@ -91,7 +92,7 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
-    public List<ReviewDto> getReviewsByProductIdAndUserId(Long productId, Long userId) {
+    public List<ReviewDto> getReviewsByProductIdAndUserId(Long productId, UUID userId) {
         log.info("Retrieving reviews for product ID: {} and user ID: {}", productId, userId);
         List<Review> reviews = reviewRepository.findByProductIdAndUserId(productId, userId);
         return reviews.stream()
@@ -150,12 +151,12 @@ public class ReviewServiceImpl implements ReviewService {
                 .orElseThrow(() -> new RuntimeException("Product not found with ID: " + productId));
     }
 
-    private User validateUserExists(Long userId) {
+    private User validateUserExists(UUID userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
     }
 
-    private void validateUserHasNotReviewed(Long productId, Long userId) {
+    private void validateUserHasNotReviewed(Long productId, UUID userId) {
         boolean alreadyReviewed = reviewRepository.existsByProductIdAndUserId(productId, userId);
         if (alreadyReviewed) {
             throw new RuntimeException("You have already reviewed this product");

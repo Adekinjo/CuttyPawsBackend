@@ -5,8 +5,10 @@ import com.cuttypaws.dto.*;
 import com.cuttypaws.entity.User;
 import com.cuttypaws.response.UserResponse;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.UUID;
 
 public interface UserService {
     UserResponse registerUser(UserDto registrationRequest);
@@ -28,7 +30,11 @@ public interface UserService {
 
     UserResponse updateUserProfile(UserDto userDto);
 
-    UserDto getUserByIdWithAddress(Long id); // Fetch user with address by ID
+    UserResponse updateProfileImage(MultipartFile file);
+
+    UserResponse updateCoverImage(MultipartFile file);
+
+    UserDto getUserByIdWithAddress(UUID id); // Fetch user with address by ID
 
     List<UserDto> getAllUsersWithAddress();
 
@@ -39,7 +45,7 @@ public interface UserService {
 
     UserResponse getAllUsersWithRoleCompany();
 
-    UserResponse getCompanyWithProducts(Long companyId);
+    UserResponse getCompanyWithProducts(UUID companyId);
     //Response loginCompany(LoginRequest loginRequest);
 
 

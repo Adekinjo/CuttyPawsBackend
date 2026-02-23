@@ -8,6 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 public interface ProductService {
     List<ProductDto> searchProducts(String query);
@@ -45,13 +46,13 @@ public interface ProductService {
 
     ProductResponse likeProduct(Long productId);
 
-    ProductResponse createProductForCompany(Long companyId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock);
+    ProductResponse createProductForCompany(UUID companyId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock);
 
-    ProductResponse updateProductForCompany(Long productId, Long companyId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock);
+    ProductResponse updateProductForCompany(Long productId, UUID companyId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock);
 
-    ProductResponse deleteProductForCompany(Long productId, Long companyId);
+    ProductResponse deleteProductForCompany(Long productId, UUID companyId);
 
-    ProductResponse getAllProductsByUser(Long userId);
+    ProductResponse getAllProductsByUser(UUID userId);
 
     ProductResponse getSearchSuggestions(String query);
 

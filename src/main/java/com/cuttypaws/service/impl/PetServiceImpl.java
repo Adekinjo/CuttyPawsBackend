@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,7 +27,7 @@ public class PetServiceImpl implements PetService {
     private final PetMapper mapper;
 
     @Override
-    public PetResponse createPet(Long userId, PetRequestDto request) {
+    public PetResponse createPet(UUID userId, PetRequestDto request) {
 
         log.info("📌 [CREATE PET] Starting pet creation for userId: {}", userId);
         log.info("📌 Pet Request: {}", request);
@@ -63,7 +64,7 @@ public class PetServiceImpl implements PetService {
 
                 log.info("➡️ Uploading file: {} (size: {} bytes)", file.getOriginalFilename(), file.getSize());
 
-                String url = awsS3Service.saveImageToS3(file);
+                String url = awsS3Service.uploadMedia(file);
 
                 log.info("✔️ Image uploaded to S3: {}", url);
 
@@ -125,7 +126,7 @@ public class PetServiceImpl implements PetService {
             for (var file : request.getImages()) {
                 try {
                     log.info("➡️ Uploading new image: {}", file.getOriginalFilename());
-                    String url = awsS3Service.saveImageToS3(file);
+                    String url = awsS3Service.uploadMedia(file);
 
                     newImages.add(
                             PetImage.builder()
@@ -189,7 +190,7 @@ public class PetServiceImpl implements PetService {
     }
 
     @Override
-    public PetResponse getMyPets(Long userId) {
+    public PetResponse getMyPets(UUID userId) {
         log.info("📌 Fetching pets for userId: {}", userId);
 
         List<Pet> pets = petRepo.findByUserId(userId);

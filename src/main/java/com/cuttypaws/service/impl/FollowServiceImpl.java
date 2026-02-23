@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,7 +35,7 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional
-    public FollowResponse followUser(Long targetUserId) {
+    public FollowResponse followUser(UUID targetUserId) {
         try {
             User currentUser = getCurrentUser();
 
@@ -105,7 +106,7 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional
-    public FollowResponse unfollowUser(Long targetUserId) {
+    public FollowResponse unfollowUser(UUID targetUserId) {
         try {
             User currentUser = getCurrentUser();
             User targetUser = userRepository.findById(targetUserId)
@@ -148,7 +149,7 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional(readOnly = true)
-    public FollowResponse getFollowStats(Long userId) {
+    public FollowResponse getFollowStats(UUID userId) {
         try {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new NotFoundException("User not found with ID: " + userId));
@@ -201,7 +202,7 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional(readOnly = true)
-    public FollowResponse getFollowers(Long userId, Pageable pageable) {
+    public FollowResponse getFollowers(UUID userId, Pageable pageable) {
         try {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new NotFoundException("User not found with ID: " + userId));
@@ -240,7 +241,7 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional(readOnly = true)
-    public FollowResponse getFollowing(Long userId, Pageable pageable) {
+    public FollowResponse getFollowing(UUID userId, Pageable pageable) {
         try {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new NotFoundException("User not found with ID: " + userId));
@@ -279,7 +280,7 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional(readOnly = true)
-    public FollowResponse checkFollowStatus(Long targetUserId) {
+    public FollowResponse checkFollowStatus(UUID targetUserId) {
         try {
             User currentUser = getCurrentUser();
             User targetUser = userRepository.findById(targetUserId)
@@ -320,7 +321,7 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional
-    public FollowResponse muteUser(Long targetUserId) {
+    public FollowResponse muteUser(UUID targetUserId) {
         try {
             User currentUser = getCurrentUser();
             Follow follow = followRepository.findByFollowerAndFollowing(currentUser,
@@ -358,7 +359,7 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional
-    public FollowResponse unmuteUser(Long targetUserId) {
+    public FollowResponse unmuteUser(UUID targetUserId) {
         try {
             User currentUser = getCurrentUser();
             Follow follow = followRepository.findByFollowerAndFollowing(currentUser,
@@ -396,7 +397,7 @@ public class FollowServiceImpl implements FollowService {
 
     @Override
     @Transactional(readOnly = true)
-    public FollowResponse getMutualFollowers(Long targetUserId) {
+    public FollowResponse getMutualFollowers(UUID targetUserId) {
         try {
             User currentUser = getCurrentUser();
             User targetUser = userRepository.findById(targetUserId)
@@ -406,7 +407,7 @@ public class FollowServiceImpl implements FollowService {
             List<Follow> currentUserFollowing = followRepository.findAllFollowingByUserId(currentUser.getId());
             List<Follow> targetUserFollowing = followRepository.findAllFollowingByUserId(targetUserId);
 
-            List<Long> currentFollowingIds = currentUserFollowing.stream()
+            List<UUID> currentFollowingIds = currentUserFollowing.stream()
                     .map(follow -> follow.getFollowing().getId())
                     .collect(Collectors.toList());
 

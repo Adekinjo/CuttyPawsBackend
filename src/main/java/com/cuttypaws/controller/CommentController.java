@@ -11,6 +11,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/comments")
 @RequiredArgsConstructor
@@ -26,7 +28,7 @@ public class CommentController {
     // =========================================================================
     @PostMapping("/create")
     public ResponseEntity<CommentResponse> createComment(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @RequestBody CommentRequestDto request
     ) {
         log.info("📝 Create comment - user: {}, post: {}", userId, request.getPostId());
@@ -40,7 +42,7 @@ public class CommentController {
     // =========================================================================
     @PutMapping("/{commentId}")
     public ResponseEntity<CommentResponse> updateComment(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long commentId,
             @RequestBody CommentRequestDto request
     ) {
@@ -55,7 +57,7 @@ public class CommentController {
     // =========================================================================
     @DeleteMapping("/{commentId}")
     public ResponseEntity<CommentResponse> deleteComment(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long commentId
     ) {
         log.info("🗑️ Delete comment {} by user {}", commentId, userId);
@@ -70,10 +72,11 @@ public class CommentController {
     @GetMapping("/post/{postId}")
     public ResponseEntity<CommentResponse> getCommentsForPost(
             @PathVariable Long postId,
-            @CurrentUser Long currentUserId,
+            //@CurrentUser UUID currentUserId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size
     ) {
+        UUID currentUserId = null;
         log.info("📄 Fetch comments for post {}", postId);
         CommentResponse res = commentService.getCommentsByPostId(postId, currentUserId, page, size);
         return ResponseEntity.status(res.getStatus()).body(res);
@@ -97,7 +100,7 @@ public class CommentController {
     // =========================================================================
     @PostMapping("/{commentId}/like")
     public ResponseEntity<CommentResponse> likeComment(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long commentId
     ) {
         log.info("❤️ Like comment {} by user {}", commentId, userId);
@@ -107,7 +110,7 @@ public class CommentController {
 
     @PostMapping("/{commentId}/unlike")
     public ResponseEntity<CommentResponse> unlikeComment(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long commentId
     ) {
         log.info("💔 Unlike comment {} by user {}", commentId, userId);
@@ -120,7 +123,7 @@ public class CommentController {
     // =========================================================================
     @PostMapping("/{commentId}/react")
     public ResponseEntity<CommentResponse> reactToComment(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long commentId,
             @RequestParam CommentLike.ReactionType reaction
     ) {
@@ -131,7 +134,7 @@ public class CommentController {
 
     @PostMapping("/{commentId}/remove-reaction")
     public ResponseEntity<CommentResponse> removeReaction(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long commentId
     ) {
         log.info("🚫 Remove reaction from comment {} by user {}", commentId, userId);
@@ -151,7 +154,7 @@ public class CommentController {
 
     @GetMapping("/{commentId}/user-reaction")
     public ResponseEntity<CommentResponse> getUserReaction(
-            @CurrentUser Long userId,
+            @CurrentUser UUID userId,
             @PathVariable Long commentId
     ) {
         log.info("🔍 Get user reaction for comment {} by user {}", commentId, userId);

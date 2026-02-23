@@ -13,7 +13,7 @@ public class AddressMapper {
 
     public UserDto mapUserToDtoBasic(User user){
         UserDto userDto = new UserDto();
-        userDto.setId(user.getId());
+        userDto.setId(user.getId().toString());
         userDto.setPhoneNumber(user.getPhoneNumber());
         userDto.setEmail(user.getEmail());
         if (user.getCompanyName() != null) {
