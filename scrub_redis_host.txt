@@ -1,0 +1,2 @@
+redis-16955.c15.us-east-1-4.ec2.redns.redis-cloud.com==>REMOVED_REDIS_HOST
+redis://default:REMOVED_REDIS_PASSWORD@REMOVED_REDIS_HOST:16955==>redis://localhost:6379
