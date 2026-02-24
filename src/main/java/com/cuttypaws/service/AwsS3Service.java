@@ -1,19 +1,19 @@
 
 package com.cuttypaws.service;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectResponse;
-
-import java.io.IOException;
-import java.util.UUID;
+//
+//import org.springframework.beans.factory.annotation.Value;
+//import org.springframework.stereotype.Service;
+//import org.springframework.web.multipart.MultipartFile;
+//import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+//import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+//import software.amazon.awssdk.core.sync.RequestBody;
+//import software.amazon.awssdk.regions.Region;
+//import software.amazon.awssdk.services.s3.S3Client;
+//import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+//import software.amazon.awssdk.services.s3.model.PutObjectResponse;
+//
+//import java.io.IOException;
+//import java.util.UUID;
 
 //@Service
 //public class AwsS3Service {
@@ -59,21 +59,95 @@ import java.util.UUID;
 //    }
 //}
 
+//
+//@Service
+//public class AwsS3Service {
+//
+//    private final String bucketName = "beauthrist-ecommerce";
+//    private final S3Client s3Client;
+//
+//    public AwsS3Service(
+//            @Value("${aws.s3.access}") String access,
+//            @Value("${aws.s3.secrete}") String secret
+//    ) {
+//        AwsBasicCredentials creds = AwsBasicCredentials.create(access, secret);
+//        this.s3Client = S3Client.builder()
+//                .credentialsProvider(StaticCredentialsProvider.create(creds))
+//                .region(Region.US_EAST_1)
+//                .build();
+//    }
+//
+//    public String uploadMedia(MultipartFile file) {
+//        String contentType = file.getContentType();
+//        if (contentType == null || !(contentType.startsWith("image/") || contentType.startsWith("video/"))) {
+//            throw new RuntimeException("Only image and video files are allowed");
+//        }
+//
+//        String ext = "";
+//        String original = file.getOriginalFilename();
+//        if (original != null && original.contains(".")) {
+//            ext = original.substring(original.lastIndexOf('.'));
+//        }
+//
+//        String key = "posts/" + UUID.randomUUID() + ext;
+//
+//        try {
+//            PutObjectRequest put = PutObjectRequest.builder()
+//                    .bucket(bucketName)
+//                    .key(key)
+//                    .contentType(contentType)
+//                    .build();
+//
+//            s3Client.putObject(put, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
+//
+//            return "https://" + bucketName + ".s3.us-east-1.amazonaws.com/" + key;
+//
+//        } catch (IOException e) {
+//            throw new RuntimeException("Upload failed: " + e.getMessage());
+//        }
+//    }
+//}
+
+
+
+
+
+
+
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+
+import java.io.IOException;
+import java.util.UUID;
 
 @Service
 public class AwsS3Service {
 
-    private final String bucketName = "beauthrist-ecommerce";
+    private final String bucketName;
+    private final Region region;
     private final S3Client s3Client;
 
     public AwsS3Service(
-            @Value("${aws.s3.access}") String access,
-            @Value("${aws.s3.secrete}") String secret
+            @Value("${aws.access-key-id}") String accessKey,
+            @Value("${aws.secret-access-key}") String secretKey,
+            @Value("${aws.region:us-east-1}") String regionStr,
+            @Value("${aws.s3.bucket-name}") String bucketName
     ) {
-        AwsBasicCredentials creds = AwsBasicCredentials.create(access, secret);
+        this.bucketName = bucketName;
+        this.region = Region.of(regionStr);
+
+        AwsBasicCredentials creds = AwsBasicCredentials.create(accessKey, secretKey);
         this.s3Client = S3Client.builder()
                 .credentialsProvider(StaticCredentialsProvider.create(creds))
-                .region(Region.US_EAST_1)
+                .region(this.region)
                 .build();
     }
 
@@ -100,10 +174,10 @@ public class AwsS3Service {
 
             s3Client.putObject(put, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
 
-            return "https://" + bucketName + ".s3.us-east-1.amazonaws.com/" + key;
+            return "https://" + bucketName + ".s3." + region.id() + ".amazonaws.com/" + key;
 
         } catch (IOException e) {
-            throw new RuntimeException("Upload failed: " + e.getMessage());
+            throw new RuntimeException("Upload failed: " + e.getMessage(), e);
         }
     }
 }

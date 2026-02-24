@@ -105,11 +105,6 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(securityFilter, JwtAuthFilter.class)
                 .addFilterAfter(securityHeadersFilter, SecurityFilter.class);
-
-//                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-//                .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
-//                .addFilterBefore(securityHeadersFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
 
