@@ -59,6 +59,7 @@ public class SecurityConfig {
                         // PUBLIC AUTH & PUBLIC CONTENT
                         .requestMatchers(
                                 "/auth/**",
+                                "/api/auth/**",
                                 "/post/get-all",
                                 "/likes/**",
                                 "/comments/**",
@@ -113,6 +114,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
                 "https://www.cuttypaws.com",
+                "https://cuttypaws.com",
                 "http://localhost:9494",
                 "http://localhost:5173"
         ));
