@@ -224,8 +224,8 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
     );
 
     private static final List<String> BACKEND_ORIGINS = List.of(
-            "https://api.cuttypaws.com" // change to your backend origin
-            // "https://cuttypaws-backend.onrender.com" // example
+            "https://api.cuttypaws.com" ,
+             "https://cuttypaws-backend.onrender.com" // example
     );
 
     /**

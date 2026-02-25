@@ -176,11 +176,35 @@ public class SecurityFilter extends OncePerRequestFilter {
         return "unknown";
     }
 
+//    @Override
+//    protected boolean shouldNotFilter(HttpServletRequest request) {
+//        String path = request.getRequestURI();
+//        return path.startsWith("/css/") ||
+//                path.startsWith("/js/") ||
+//                path.startsWith("/images/");
+//    }
+
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        return path.startsWith("/css/") ||
-                path.startsWith("/js/") ||
-                path.startsWith("/images/");
+
+        // Always skip preflight
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
+
+        // Skip public endpoints
+        if (path.startsWith("/auth/")) return true;
+        if (path.startsWith("/error")) return true;
+
+        // Skip static
+        return path.startsWith("/css/")
+                || path.startsWith("/js/")
+                || path.startsWith("/images/")
+                || path.startsWith("/fonts/")
+                || path.endsWith(".ico")
+                || path.endsWith(".png")
+                || path.endsWith(".jpg")
+                || path.endsWith(".jpeg")
+                || path.endsWith(".webp")
+                || path.endsWith(".svg");
     }
 }
