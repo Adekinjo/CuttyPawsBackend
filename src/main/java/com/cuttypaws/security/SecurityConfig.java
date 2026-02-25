@@ -215,6 +215,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/auth/**",
                                 "/post/get-all",
+                                "/post/get-all/**",
                                 "/likes/**",
                                 "/comments/**",
                                 "/deals/**",
