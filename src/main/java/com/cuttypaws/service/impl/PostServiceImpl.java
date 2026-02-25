@@ -312,9 +312,10 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PostResponse getAllPosts() {
         try {
-            List<Post> posts = postRepo.findAllWithMedia();
+            List<Post> posts = postRepo.findAllWithOwnerLikesMedia();
 
             List<PostDto> postDtos = posts.stream()
                     .map(p -> mapper.mapPostToDto(p, null))

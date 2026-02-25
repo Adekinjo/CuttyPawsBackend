@@ -42,11 +42,11 @@ public interface PostRepo extends JpaRepository<Post, Long> {
 
     @Query("""
    SELECT DISTINCT p FROM Post p
+   LEFT JOIN FETCH p.owner
    LEFT JOIN FETCH p.media
+   LEFT JOIN FETCH p.likes
    ORDER BY p.createdAt DESC
 """)
-    List<Post> findAllWithMedia();
-
-
+    List<Post> findAllWithOwnerLikesMedia();
 
 }
