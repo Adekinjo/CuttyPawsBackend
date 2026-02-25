@@ -289,9 +289,10 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public PostResponse getMyPosts(UUID userId, UUID currentUserId) {
         try {
-            List<Post> posts = postRepo.findByOwnerIdOrderByCreatedAtDesc(userId);
+            List<Post> posts = postRepo.findByOwnerIdWithLikesAndMedia(userId);
             List<PostDto> postDtos = posts.stream()
                     .map(p -> mapper.mapPostToDto(p, currentUserId))
                     .collect(Collectors.toList());
@@ -335,6 +336,7 @@ public class PostServiceImpl implements PostService {
 
 
     @Override
+    @Transactional(readOnly = true)
     public PostResponse getUserPosts(UUID userId, UUID currentUserId) {
         try {
             // Verify user exists
@@ -345,7 +347,7 @@ public class PostServiceImpl implements PostService {
                         .build();
             }
 
-            List<Post> posts = postRepo.findByOwnerIdOrderByCreatedAtDesc(userId);
+            List<Post> posts = postRepo.findByOwnerIdWithLikesAndMedia(userId);
             List<PostDto> postDtos = posts.stream()
                     .map(p -> mapper.mapPostToDto(p, currentUserId))
                     .collect(Collectors.toList());
