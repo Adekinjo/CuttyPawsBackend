@@ -112,7 +112,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(Arrays.asList(
-                "https://www.kinjomarket.com",
+                "https://www.cuttypaws.com",
                 "http://localhost:9494",
                 "http://localhost:5173"
         ));
