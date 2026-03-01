@@ -101,7 +101,7 @@ public class PostLikeController {
             @CurrentUser UUID userId,
             @PathVariable Long postId
     ) {
-        return reactToPost(userId, postId, PostLike.ReactionType.LIKE);
+        return reactToPost(userId, postId, PostLike.ReactionType.PAWPRINT);
     }
 
     @PostMapping("/{postId}/unlike")

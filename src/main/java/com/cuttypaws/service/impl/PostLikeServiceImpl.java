@@ -26,53 +26,86 @@ public class PostLikeServiceImpl implements PostLikeService {
     private final PostMapper mapper;
     private final NotificationService notificationService;
 
+
     @Override
     @Transactional
     public PostLikeResponse reactToPost(UUID userId, Long postId, PostLike.ReactionType reactionType) {
         try {
-            log.info("Reacting to post - User: {}, Post: {}, Reaction: {}", userId, postId, reactionType);
+            if (reactionType == null) {
+                return PostLikeResponse.builder()
+                        .status(400)
+                        .message("Reaction type is required")
+                        .build();
+            }
 
             User user = userRepo.findById(userId)
                     .orElseThrow(() -> new NotFoundException("User not found"));
+
             Post post = postRepo.findById(postId)
                     .orElseThrow(() -> new NotFoundException("Post not found"));
 
-            Optional<PostLike> existingReaction = postLikeRepo.findByUserIdAndPostId(userId, postId);
+            // Optional: block reacting to own post
+            // if (userId.equals(post.getOwner().getId())) {
+            //     return PostLikeResponse.builder().status(400).message("You cannot react to your own post").build();
+            // }
 
-            if (existingReaction.isPresent()) {
-                // Update existing reaction
-                PostLike reaction = existingReaction.get();
-                reaction.setReactionType(reactionType);
-                postLikeRepo.save(reaction);
-                log.info("Reaction updated to: {}", reactionType);
+            Optional<PostLike> existing = postLikeRepo.findByUserIdAndPostId(userId, postId);
+
+            PostLike.ReactionType previousReaction = null;
+            PostLike.ReactionType currentReaction = reactionType;
+
+            if (existing.isPresent()) {
+                PostLike entity = existing.get();
+                previousReaction = entity.getReactionType();
+
+                // If same reaction, do nothing (still return fresh counts)
+                if (previousReaction == reactionType) {
+                    Map<String, Object> reactionData = getReactionData(postId);
+
+                    Map<String, Object> responseData = new HashMap<>();
+                    responseData.put("reactions", reactionData);
+                    responseData.put("userReaction", previousReaction);
+                    responseData.put("previousReaction", previousReaction);
+
+                    return PostLikeResponse.builder()
+                            .status(200)
+                            .message("Reaction unchanged")
+                            .data(responseData)
+                            .build();
+                }
+
+                entity.setReactionType(reactionType);
+                postLikeRepo.save(entity);
             } else {
-                // Create new reaction
-                PostLike postLike = PostLike.builder()
+                PostLike created = PostLike.builder()
                         .user(user)
                         .post(post)
                         .reactionType(reactionType)
                         .build();
-                postLikeRepo.save(postLike);
-                log.info("New reaction created: {}", reactionType);
+                postLikeRepo.save(created);
             }
 
-            // Get reaction counts for this post
+            // Always return accurate counts from DB (single source of truth)
             Map<String, Object> reactionData = getReactionData(postId);
-            PostDto postDto = mapper.mapPostToDto(post, userId);
 
             Map<String, Object> responseData = new HashMap<>();
-            responseData.put("post", postDto);
             responseData.put("reactions", reactionData);
-            responseData.put("userReaction", reactionType);
+            responseData.put("userReaction", currentReaction);
+            responseData.put("previousReaction", previousReaction);
 
-            // Send notification
+            // If you want postDto too, keep it. But reactions are the focus:
+             PostDto postDto = mapper.mapPostToDto(post, userId);
+             responseData.put("post", postDto);
+
+            // Notification (rename ideally)
             if (!userId.equals(post.getOwner().getId())) {
+                // Better to rename to notifyPostReacted(post, user, reactionType)
                 notificationService.notifyPostLiked(post, user);
             }
 
             return PostLikeResponse.builder()
                     .status(200)
-                    .message("Reaction added successfully")
+                    .message("Reaction saved successfully")
                     .data(responseData)
                     .build();
 
@@ -94,24 +127,30 @@ public class PostLikeServiceImpl implements PostLikeService {
     @Transactional
     public PostLikeResponse removeReaction(UUID userId, Long postId) {
         try {
-            Optional<PostLike> existingReaction = postLikeRepo.findByUserIdAndPostId(userId, postId);
+            Optional<PostLike> existing = postLikeRepo.findByUserIdAndPostId(userId, postId);
 
-            if (existingReaction.isEmpty()) {
+            if (existing.isEmpty()) {
+                // Still return counts for UI stability
+                Map<String, Object> reactionData = getReactionData(postId);
+
+                Map<String, Object> responseData = new HashMap<>();
+                responseData.put("reactions", reactionData);
+                responseData.put("userReaction", null);
+
                 return PostLikeResponse.builder()
-                        .status(400)
-                        .message("You have not reacted to this post")
+                        .status(200)
+                        .message("No reaction to remove")
+                        .data(responseData)
                         .build();
             }
 
-            postLikeRepo.delete(existingReaction.get());
+            postLikeRepo.delete(existing.get());
 
             Map<String, Object> reactionData = getReactionData(postId);
-            Post post = postRepo.findById(postId).orElseThrow(() -> new NotFoundException("Post not found"));
-            PostDto postDto = mapper.mapPostToDto(post, userId);
 
             Map<String, Object> responseData = new HashMap<>();
-            responseData.put("post", postDto);
             responseData.put("reactions", reactionData);
+            responseData.put("userReaction", null);
 
             return PostLikeResponse.builder()
                     .status(200)
@@ -185,21 +224,47 @@ public class PostLikeServiceImpl implements PostLikeService {
         }
     }
 
+//    private Map<String, Object> getReactionData(Long postId) {
+//        List<Object[]> reactionCounts = postLikeRepo.getReactionCountsByPostId(postId);
+//        Map<String, Integer> reactions = new HashMap<>();
+//        int totalReactions = 0;
+//
+//        for (Object[] result : reactionCounts) {
+//            PostLike.ReactionType type = (PostLike.ReactionType) result[0];
+//            Long count = (Long) result[1];
+//            reactions.put(type.name(), count.intValue());
+//            totalReactions += count.intValue();
+//        }
+//
+//        Map<String, Object> reactionData = new HashMap<>();
+//        reactionData.put("counts", reactions);
+//        reactionData.put("total", totalReactions);
+//        reactionData.put("postId", postId);
+//
+//        return reactionData;
+//    }
+
     private Map<String, Object> getReactionData(Long postId) {
         List<Object[]> reactionCounts = postLikeRepo.getReactionCountsByPostId(postId);
-        Map<String, Integer> reactions = new HashMap<>();
-        int totalReactions = 0;
 
-        for (Object[] result : reactionCounts) {
-            PostLike.ReactionType type = (PostLike.ReactionType) result[0];
-            Long count = (Long) result[1];
-            reactions.put(type.name(), count.intValue());
-            totalReactions += count.intValue();
+        // Always include all reaction types with default 0
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (PostLike.ReactionType t : PostLike.ReactionType.values()) {
+            counts.put(t.name(), 0);
+        }
+
+        int total = 0;
+        for (Object[] row : reactionCounts) {
+            PostLike.ReactionType type = (PostLike.ReactionType) row[0];
+            Long c = (Long) row[1];
+            int value = c == null ? 0 : c.intValue();
+            counts.put(type.name(), value);
+            total += value;
         }
 
         Map<String, Object> reactionData = new HashMap<>();
-        reactionData.put("counts", reactions);
-        reactionData.put("total", totalReactions);
+        reactionData.put("counts", counts);
+        reactionData.put("total", total);
         reactionData.put("postId", postId);
 
         return reactionData;
@@ -208,7 +273,7 @@ public class PostLikeServiceImpl implements PostLikeService {
     // Existing methods for backward compatibility
     @Override
     public PostLikeResponse likePost(UUID userId, Long postId) {
-        return reactToPost(userId, postId, PostLike.ReactionType.LIKE);
+        return reactToPost(userId, postId, PostLike.ReactionType.PAWPRINT);
     }
 
     @Override

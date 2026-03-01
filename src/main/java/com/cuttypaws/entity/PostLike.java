@@ -17,7 +17,11 @@ import lombok.NoArgsConstructor;
 public class PostLike extends BaseEntity {
 
     public enum ReactionType {
-        LIKE, LOVE, HAHA, WOW, SAD, ANGRY
+        // legacy (temporary)
+        LIKE, LOVE, HAHA, WOW, SAD, ANGRY,
+
+        // new (final)
+        PAWPRINT, COOKIE, BONE, HEART
     }
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -31,5 +35,5 @@ public class PostLike extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = true)
     @Builder.Default
-    private ReactionType reactionType = ReactionType.LIKE;
+    private ReactionType reactionType = ReactionType.PAWPRINT;
 }
