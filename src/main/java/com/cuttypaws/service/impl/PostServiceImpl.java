@@ -11,6 +11,9 @@ import com.cuttypaws.service.AwsS3Service;
 import com.cuttypaws.service.interf.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +38,10 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "postsAll", allEntries = true),
+            @CacheEvict(value = "postsByUser", allEntries = true)
+    })
     public PostResponse createPost(UUID userId, PostRequestDto request) {
         try {
             log.info("📌 [CREATE POST] Started by userId: {}", userId);
@@ -116,6 +123,11 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "postById", key = "#postId"),
+            @CacheEvict(value = "postsAll", allEntries = true),
+            @CacheEvict(value = "postsByUser", allEntries = true)
+    })
     public PostResponse updatePost(UUID userId, Long postId, PostRequestDto request) {
         try {
             log.info("✏ [UPDATE POST] postId={} by userId={}", postId, userId);
@@ -262,6 +274,12 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
+    @Cacheable(
+            value = "postById",
+            key = "#postId",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.post == null"
+    )
     public PostResponse getPostById(Long postId) {
         try {
             Post post = postRepo.findByIdWithLikesAndMedia(postId)
@@ -313,6 +331,11 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(
+            value = "postsAll",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.postList == null || #result.postList.isEmpty()"
+    )
     public PostResponse getAllPosts() {
         try {
             List<Post> posts = postRepo.findAllWithOwnerLikesMedia();
@@ -338,6 +361,12 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(
+            value = "postsByUser",
+            key = "T(String).valueOf(#userId).concat(':').concat(T(String).valueOf(#currentUserId))",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.postList == null"
+    )
     public PostResponse getUserPosts(UUID userId, UUID currentUserId) {
         try {
             // Verify user exists

@@ -11,6 +11,8 @@ import com.cuttypaws.response.CommentResponse;
 import com.cuttypaws.service.interf.CommentLikeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +29,12 @@ public class CommentLikeServiceImpl implements CommentLikeService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "commentReactions", key = "#commentId"),
+            @CacheEvict(value = "userCommentReaction", key = "T(String).valueOf(#userId).concat(':').concat(T(String).valueOf(#commentId))"),
+            @CacheEvict(value = "commentById", key = "#commentId"),
+            @CacheEvict(value = "commentsByPost", allEntries = true)
+    })
     public CommentResponse reactToComment(UUID userId, Long commentId, CommentLike.ReactionType reactionType) {
         try {
             log.info("Reacting to comment - User: {}, Comment: {}, Reaction: {}", userId, commentId, reactionType);
@@ -79,6 +87,12 @@ public class CommentLikeServiceImpl implements CommentLikeService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "commentReactions", key = "#commentId"),
+            @CacheEvict(value = "userCommentReaction", key = "T(String).valueOf(#userId).concat(':').concat(T(String).valueOf(#commentId))"),
+            @CacheEvict(value = "commentById", key = "#commentId"),
+            @CacheEvict(value = "commentsByPost", allEntries = true)
+    })
     public CommentResponse removeReaction(UUID userId, Long commentId) {
         try {
             Optional<CommentLike> existingReaction = commentLikeRepo.findByUserIdAndCommentId(userId, commentId);

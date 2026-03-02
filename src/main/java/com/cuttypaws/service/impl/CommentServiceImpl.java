@@ -16,6 +16,9 @@ import com.cuttypaws.service.interf.CommentService;
 import com.cuttypaws.service.interf.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -48,6 +51,10 @@ public class CommentServiceImpl implements CommentService {
     // =========================================================================
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "commentsByPost", allEntries = true),
+            @CacheEvict(value = "postById", key = "#request.postId") // if you show comment count in post
+    })
     public CommentResponse createComment(UUID userId, CommentRequestDto request) {
         try {
             if (userId == null) {
@@ -126,6 +133,10 @@ public class CommentServiceImpl implements CommentService {
     // =========================================================================
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "commentById", key = "#commentId"),
+            @CacheEvict(value = "commentsByPost", allEntries = true)
+    })
     public CommentResponse updateComment(UUID userId, Long commentId, CommentRequestDto request) {
         try {
             Comment comment = commentRepo.findById(commentId)
@@ -167,6 +178,11 @@ public class CommentServiceImpl implements CommentService {
     // =========================================================================
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "commentById", key = "#commentId"),
+            @CacheEvict(value = "commentsByPost", allEntries = true),
+            @CacheEvict(value = "postById", key = "#result == null ? null : #result.postId") // not possible unless you include it
+    })
     public CommentResponse deleteComment(UUID userId, Long commentId) {
         try {
             Comment comment = commentRepo.findById(commentId)
@@ -210,6 +226,12 @@ public class CommentServiceImpl implements CommentService {
     // =========================================================================
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(
+            value = "commentById",
+            key = "#commentId",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.comment == null"
+    )
     public CommentResponse getCommentById(Long commentId) {
         try {
             Comment c = commentRepo.findById(commentId)
@@ -230,6 +252,12 @@ public class CommentServiceImpl implements CommentService {
     // =========================================================================
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(
+            value = "commentsByPost",
+            key = "T(String).valueOf(#postId).concat(':').concat(#page).concat(':').concat(#size).concat(':').concat(T(String).valueOf(#currentUserId))",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.commentList == null"
+    )
     public CommentResponse getCommentsByPostId(Long postId, UUID currentUserId, int page, int size) {
         try {
             if (!postRepo.existsById(postId)) {

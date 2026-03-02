@@ -9,6 +9,9 @@ import com.cuttypaws.service.AwsS3Service;
 import com.cuttypaws.service.interf.PetService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -27,6 +30,11 @@ public class PetServiceImpl implements PetService {
     private final PetMapper mapper;
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value="petsAll", allEntries = true),
+            @CacheEvict(value="petsByUser", key="#userId"),
+            @CacheEvict(value="petById", allEntries = true) // optional; if update/delete uses petId then target it
+    })
     public PetResponse createPet(UUID userId, PetRequestDto request) {
 
         log.info("📌 [CREATE PET] Starting pet creation for userId: {}", userId);
@@ -96,6 +104,11 @@ public class PetServiceImpl implements PetService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value="petsAll", allEntries = true),
+            @CacheEvict(value="petsByUser", key="#userId"),
+            @CacheEvict(value="petById", allEntries = true) // optional; if update/delete uses petId then target it
+    })
     public PetResponse updatePet(Long petId, PetRequestDto request) {
 
         log.info("📌 [UPDATE PET] Updating pet ID: {}", petId);
@@ -158,6 +171,11 @@ public class PetServiceImpl implements PetService {
     }
 
     @Override
+    @Caching(evict = {
+            @CacheEvict(value="petsAll", allEntries = true),
+            @CacheEvict(value="petsByUser", key="#userId"),
+            @CacheEvict(value="petById", allEntries = true) // optional; if update/delete uses petId then target it
+    })
     public PetResponse deletePet(Long petId) {
         log.info("🗑️ Deleting pet with ID: {}", petId);
 
@@ -172,6 +190,8 @@ public class PetServiceImpl implements PetService {
     }
 
     @Override
+    @Cacheable(value="petById", key="#petId", condition="@cacheToggleService.isEnabled()",
+            unless="#result == null || #result.pet == null")
     public PetResponse getPetById(Long petId) {
         log.info("📌 Fetching pet with ID: {}", petId);
 
@@ -190,6 +210,8 @@ public class PetServiceImpl implements PetService {
     }
 
     @Override
+    @Cacheable(value="petsByUser", key="#userId", condition="@cacheToggleService.isEnabled()",
+            unless="#result == null || #result.petList == null")
     public PetResponse getMyPets(UUID userId) {
         log.info("📌 Fetching pets for userId: {}", userId);
 
@@ -208,6 +230,8 @@ public class PetServiceImpl implements PetService {
     }
 
     @Override
+    @Cacheable(value="petsAll", condition="@cacheToggleService.isEnabled()",
+            unless="#result == null || #result.petList == null || #result.petList.isEmpty()")
     public PetResponse getAllPets() {
         log.info("📌 Fetching ALL pets...");
 

@@ -9,6 +9,9 @@ import com.cuttypaws.response.*;
 import com.cuttypaws.service.interf.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,14 @@ public class PostLikeServiceImpl implements PostLikeService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "postReactions", key = "#postId"),
+            @CacheEvict(value = "userPostReaction", key = "T(String).valueOf(#userId).concat(':').concat(T(String).valueOf(#postId))"),
+            @CacheEvict(value = "userLikedPosts", key = "#userId"),
+            @CacheEvict(value = "postById", key = "#postId"),
+            @CacheEvict(value = "postsAll", allEntries = true),
+            @CacheEvict(value = "postsByUser", allEntries = true)
+    })
     public PostLikeResponse reactToPost(UUID userId, Long postId, PostLike.ReactionType reactionType) {
         try {
             if (reactionType == null) {
@@ -169,6 +180,12 @@ public class PostLikeServiceImpl implements PostLikeService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(
+            value = "postReactions",
+            key = "#postId",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.data == null"
+    )
     public PostLikeResponse getPostReactions(Long postId) {
         try {
             if (!postRepo.existsById(postId)) {
@@ -199,6 +216,12 @@ public class PostLikeServiceImpl implements PostLikeService {
 
     @Override
     @Transactional(readOnly = true)
+    @Cacheable(
+            value = "userPostReaction",
+            key = "T(String).valueOf(#userId).concat(':').concat(T(String).valueOf(#postId))",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.data == null"
+    )
     public PostLikeResponse checkUserReaction(UUID userId, Long postId) {
         try {
             Optional<PostLike> userReaction = postLikeRepo.findByUserIdAndPostId(userId, postId);
@@ -223,26 +246,6 @@ public class PostLikeServiceImpl implements PostLikeService {
                     .build();
         }
     }
-
-//    private Map<String, Object> getReactionData(Long postId) {
-//        List<Object[]> reactionCounts = postLikeRepo.getReactionCountsByPostId(postId);
-//        Map<String, Integer> reactions = new HashMap<>();
-//        int totalReactions = 0;
-//
-//        for (Object[] result : reactionCounts) {
-//            PostLike.ReactionType type = (PostLike.ReactionType) result[0];
-//            Long count = (Long) result[1];
-//            reactions.put(type.name(), count.intValue());
-//            totalReactions += count.intValue();
-//        }
-//
-//        Map<String, Object> reactionData = new HashMap<>();
-//        reactionData.put("counts", reactions);
-//        reactionData.put("total", totalReactions);
-//        reactionData.put("postId", postId);
-//
-//        return reactionData;
-//    }
 
     private Map<String, Object> getReactionData(Long postId) {
         List<Object[]> reactionCounts = postLikeRepo.getReactionCountsByPostId(postId);
@@ -287,6 +290,12 @@ public class PostLikeServiceImpl implements PostLikeService {
     }
 
     @Override
+    @Cacheable(
+            value = "userLikedPosts",
+            key = "#userId",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.postList == null"
+    )
     public PostLikeResponse getUserLikedPosts(UUID userId) {
         try {
             List<PostLike> userLikes = postLikeRepo.findByUserId(userId);
