@@ -1505,7 +1505,7 @@ public class UserServiceImpl implements UserService {
     }
 
     private void sendPasswordResetEmail(User user, String token) {
-        String resetLink = "https://www.kinjomarket.com/reset-password?token=" + token;
+        String resetLink = "https://www.cuttypaws.com/reset-password?token=" + token;
         String body = String.format(
                 "Dear %s,\n\n" +
                         "You requested a password reset. Click the link below (valid for %d minutes):\n%s\n\n" +
