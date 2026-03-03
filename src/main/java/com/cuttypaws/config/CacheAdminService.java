@@ -43,11 +43,4 @@ public class CacheAdminService {
         );
     }
 
-//    public Map<String, Object> listCaches() {
-//        Map<String, Object> out = new LinkedHashMap<>();
-//        for (String name : cacheManager.getCacheNames()) {
-//            out.put(name, Map.of("exists", cacheManager.getCache(name) != null));
-//        }
-//        return out;
-//    }
 }

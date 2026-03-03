@@ -93,6 +93,27 @@ public class RedisCacheConfig {
         cacheConfigs.put("subCategorySearch", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigs.put("subCategoriesByCategory", defaultConfig.entryTtl(Duration.ofHours(3)));
 
+        // Posts
+        cacheConfigs.put("postById", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigs.put("postsAll", defaultConfig.entryTtl(Duration.ofMinutes(2)));
+        cacheConfigs.put("postsByUser", defaultConfig.entryTtl(Duration.ofMinutes(2)));
+        cacheConfigs.put("userLikedPosts", defaultConfig.entryTtl(Duration.ofMinutes(2)));
+
+// Comments (fast-changing)
+        cacheConfigs.put("commentById", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+        cacheConfigs.put("commentsByPost", defaultConfig.entryTtl(Duration.ofSeconds(30)));
+
+// Reactions (very fast-changing)
+        cacheConfigs.put("postReactions", defaultConfig.entryTtl(Duration.ofSeconds(15)));
+        cacheConfigs.put("userPostReaction", defaultConfig.entryTtl(Duration.ofSeconds(15)));
+        cacheConfigs.put("commentReactions", defaultConfig.entryTtl(Duration.ofSeconds(15)));
+        cacheConfigs.put("userCommentReaction", defaultConfig.entryTtl(Duration.ofSeconds(15)));
+
+// Pets (stable)
+        cacheConfigs.put("petById", defaultConfig.entryTtl(Duration.ofHours(2)));
+        cacheConfigs.put("petsAll", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigs.put("petsByUser", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+
         RedisCacheManager cacheManager = RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigs)
