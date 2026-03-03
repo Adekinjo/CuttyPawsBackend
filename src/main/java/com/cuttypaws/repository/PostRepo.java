@@ -49,4 +49,12 @@ public interface PostRepo extends JpaRepository<Post, Long> {
 """)
     List<Post> findAllWithOwnerLikesMedia();
 
+    @Query("""
+   SELECT DISTINCT p FROM Post p
+   LEFT JOIN FETCH p.owner
+   LEFT JOIN FETCH p.media
+   ORDER BY p.createdAt DESC
+""")
+    List<Post> findAllWithOwnerAndMedia();
+
 }

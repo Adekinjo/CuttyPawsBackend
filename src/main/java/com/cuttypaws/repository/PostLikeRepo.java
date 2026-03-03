@@ -29,4 +29,20 @@ public interface PostLikeRepo extends JpaRepository<PostLike, Long> {
 
     @Query("SELECT COUNT(pl) FROM PostLike pl WHERE pl.post.id = :postId AND pl.reactionType = :reactionType")
     Long countByPostIdAndReactionType(@Param("postId") Long postId, @Param("reactionType") PostLike.ReactionType reactionType);
+
+    @Query("""
+  SELECT pl.post.id, COUNT(pl)
+  FROM PostLike pl
+  WHERE pl.post.id IN :postIds
+  GROUP BY pl.post.id
+""")
+    List<Object[]> countLikesByPostIds(@Param("postIds") List<Long> postIds);
+
+    @Query("""
+  SELECT pl.post.id
+  FROM PostLike pl
+  WHERE pl.user.id = :userId AND pl.post.id IN :postIds
+""")
+    List<Long> likedPostIdsByUser(@Param("userId") UUID userId,
+                                  @Param("postIds") List<Long> postIds);
 }

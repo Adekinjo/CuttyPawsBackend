@@ -338,7 +338,7 @@ public class PostServiceImpl implements PostService {
     )
     public PostResponse getAllPosts() {
         try {
-            List<Post> posts = postRepo.findAllWithOwnerLikesMedia();
+            List<Post> posts = postRepo.findAllWithOwnerAndMedia();
 
             List<PostDto> postDtos = posts.stream()
                     .map(p -> mapper.mapPostToDto(p, null))
