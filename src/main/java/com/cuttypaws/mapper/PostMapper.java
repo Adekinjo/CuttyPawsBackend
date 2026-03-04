@@ -36,25 +36,11 @@ public class PostMapper {
                                 .build())
                         .toList();
 
-        // 🔍 DEBUG MEDIA FROM ENTITY
-        if (post.getMedia() == null || post.getMedia().isEmpty()) {
-            log.warn("⚠️ Post {} has NO media in entity", post.getId());
-        } else {
-            post.getMedia().forEach(m ->
-                    log.info("📷 Post {} MEDIA from DB → {}", post.getId(), m.getMediaUrl())
-            );
-        }
-
         List<String> imageUrls = post.getMedia() == null ? List.of() :
                 post.getMedia().stream()
                         .filter(m -> m.getMediaType() == MediaType.IMAGE)
                         .map(PostMedia::getMediaUrl)
                         .toList();
-
-        // 🔍 DEBUG IMAGE URLS SENT TO FRONTEND
-        imageUrls.forEach(url ->
-                log.info("🌐 Post {} IMAGE URL sent to frontend → {}", post.getId(), url)
-        );
 
         PostDto.PostDtoBuilder builder = PostDto.builder()
                 .id(post.getId())
@@ -79,5 +65,42 @@ public class PostMapper {
         return builder.build();
     }
 
+    public PostDto mapPostToDtoFast(
+            Post post,
+            int likeCount,
+            int commentCount,
+            Boolean isLikedByCurrentUser
+    ) {
+
+        List<MediaDto> media = post.getMedia() == null ? List.of() :
+                post.getMedia().stream()
+                        .map(m -> MediaDto.builder()
+                                .url(m.getMediaUrl())
+                                .type(m.getMediaType().name())
+                                .thumbnailUrl(m.getThumbnailUrl())
+                                .build())
+                        .toList();
+
+        List<String> imageUrls = post.getMedia() == null ? List.of() :
+                post.getMedia().stream()
+                        .filter(m -> m.getMediaType() == MediaType.IMAGE)
+                        .map(PostMedia::getMediaUrl)
+                        .toList();
+
+        return PostDto.builder()
+                .id(post.getId())
+                .caption(post.getCaption())
+                .ownerId(post.getOwner() != null ? post.getOwner().getId() : null)
+                .ownerName(post.getOwner() != null ? post.getOwner().getName() : "Unknown")
+                .ownerProfileImage(post.getOwner() != null ? post.getOwner().getProfileImageUrl() : null)
+                .media(media)
+                .imageUrls(imageUrls)
+                .likeCount(likeCount)
+                .commentCount(commentCount)
+                .isLikedByCurrentUser(isLikedByCurrentUser)
+                .createdAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : null)
+                .updatedAt(post.getUpdatedAt() != null ? post.getUpdatedAt().toString() : null)
+                .build();
+    }
 
 }

@@ -33,6 +33,7 @@ public class PostServiceImpl implements PostService {
     private final PostMapper mapper;
     private final FollowRepo followRepo;
     private final NotificationService notificationService;
+    private final PostLikeRepo postLikeRepo;
     private final CommentRepo commentRepo;
 
 
@@ -328,6 +329,36 @@ public class PostServiceImpl implements PostService {
                     .build();
         }
     }
+//
+//    @Override
+//    @Transactional(readOnly = true)
+//    @Cacheable(
+//            value = "postsAll",
+//            condition = "@cacheToggleService.isEnabled()",
+//            unless = "#result == null || #result.postList == null || #result.postList.isEmpty()"
+//    )
+//    public PostResponse getAllPosts() {
+//        try {
+//            List<Post> posts = postRepo.findAllWithOwnerAndMedia();
+//
+//            List<PostDto> postDtos = posts.stream()
+//                    .map(p -> mapper.mapPostToDto(p, null))
+//                    .toList();
+//
+//            return PostResponse.builder()
+//                    .status(200)
+//                    .postList(postDtos)
+//                    .build();
+//
+//        } catch (Exception e) {
+//            //log.error("❌ Error retrieving all posts: {}", e.getMessage(), e);
+//            return PostResponse.builder()
+//                    .status(500)
+//                    .message("Failed to retrieve posts")
+//                    .build();
+//        }
+//    }
+//
 
     @Override
     @Transactional(readOnly = true)
@@ -338,10 +369,36 @@ public class PostServiceImpl implements PostService {
     )
     public PostResponse getAllPosts() {
         try {
+            // 1) Fetch posts + owner + media (NO likes join)
             List<Post> posts = postRepo.findAllWithOwnerAndMedia();
+            if (posts.isEmpty()) {
+                return PostResponse.builder().status(200).postList(List.of()).build();
+            }
 
+            List<Long> postIds = posts.stream().map(Post::getId).toList();
+
+            // 2) Batch likes count for all posts (1 query)
+            var likeCountMap = postLikeRepo.countLikesByPostIds(postIds).stream()
+                    .collect(Collectors.toMap(
+                            r -> (Long) r[0],
+                            r -> ((Long) r[1]).intValue()
+                    ));
+
+            // 3) Batch comment count for all posts (1 query)
+            var commentCountMap = commentRepo.countCommentsByPostIds(postIds).stream()
+                    .collect(Collectors.toMap(
+                            r -> (Long) r[0],
+                            r -> ((Long) r[1]).intValue()
+                    ));
+
+            // 4) Map with NO DB calls per post
             List<PostDto> postDtos = posts.stream()
-                    .map(p -> mapper.mapPostToDto(p, null))
+                    .map(p -> mapper.mapPostToDtoFast(
+                            p,
+                            likeCountMap.getOrDefault(p.getId(), 0),
+                            commentCountMap.getOrDefault(p.getId(), 0),
+                            null // feed endpoint not user-specific
+                    ))
                     .toList();
 
             return PostResponse.builder()
@@ -357,7 +414,6 @@ public class PostServiceImpl implements PostService {
                     .build();
         }
     }
-
 
     @Override
     @Transactional(readOnly = true)

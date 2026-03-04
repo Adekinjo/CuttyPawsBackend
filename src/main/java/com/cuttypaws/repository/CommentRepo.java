@@ -19,4 +19,13 @@ public interface CommentRepo extends JpaRepository<Comment, Long> {
     List<Comment> findByParentCommentIdOrderByCreatedAtAsc(Long parentId);
 
     Long countByPostId(Long postId);
+
+    // ✅ NEW: batch counts for feed
+    @Query("""
+        SELECT c.post.id, COUNT(c)
+        FROM Comment c
+        WHERE c.post.id IN :postIds
+        GROUP BY c.post.id
+    """)
+    List<Object[]> countCommentsByPostIds(@Param("postIds") List<Long> postIds);
 }
