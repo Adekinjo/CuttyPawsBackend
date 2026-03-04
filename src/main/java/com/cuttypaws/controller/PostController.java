@@ -1,6 +1,7 @@
 package com.cuttypaws.controller;
 
 import com.cuttypaws.dto.PostRequestDto;
+import com.cuttypaws.response.FeedPageResponse;
 import com.cuttypaws.response.PostResponse;
 import com.cuttypaws.security.CurrentUser;
 import com.cuttypaws.service.interf.PostService;
@@ -8,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @RestController
@@ -63,11 +66,20 @@ public class PostController {
     }
 
     // ================== GET ALL POSTS FOR FEED ==================
+//    @GetMapping("/get-all")
+//    public ResponseEntity<PostResponse> getAllPosts() {
+//        // Feed must respect logged-in user for "isLikedByCurrentUser"
+//        PostResponse response = postService.getAllPosts();
+//        return ResponseEntity.status(response.getStatus()).body(response);
+//    }
+
     @GetMapping("/get-all")
-    public ResponseEntity<PostResponse> getAllPosts() {
-        // Feed must respect logged-in user for "isLikedByCurrentUser"
-        PostResponse response = postService.getAllPosts();
-        return ResponseEntity.status(response.getStatus()).body(response);
+    public ResponseEntity<FeedPageResponse> feed(
+            @RequestParam(required = false) LocalDateTime cursorCreatedAt,
+            @RequestParam(required = false) Long cursorId,
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        return ResponseEntity.ok(postService.getFeedCursor(cursorCreatedAt, cursorId, limit));
     }
 
     // ================== GET POSTS OF ANOTHER USER ==================

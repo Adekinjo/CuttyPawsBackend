@@ -2,8 +2,11 @@ package com.cuttypaws.service.interf;
 
 
 import com.cuttypaws.dto.PostRequestDto;
+import com.cuttypaws.response.FeedPageResponse;
 import com.cuttypaws.response.PostResponse;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 public interface PostService {
@@ -21,6 +24,8 @@ public interface PostService {
     PostResponse getAllPosts();
 
     PostResponse getUserPosts(UUID userId, UUID currentUserId); // Get posts by specific user
+
+    FeedPageResponse getFeedCursor(LocalDateTime cursorCreatedAt, Long cursorId, int limit);
 }
 
 
