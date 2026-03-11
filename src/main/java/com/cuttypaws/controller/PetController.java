@@ -28,15 +28,16 @@ public class PetController {
 
     @PutMapping("/{petId}")
     public ResponseEntity<PetResponse> updatePet(
+            @CurrentUser UUID userId,
             @PathVariable Long petId,
             @ModelAttribute PetRequestDto request
     ) {
-        return ResponseEntity.ok(petService.updatePet(petId, request));
+        return ResponseEntity.ok(petService.updatePet(userId, petId, request));
     }
 
     @DeleteMapping("/{petId}")
-    public ResponseEntity<PetResponse> deletePet(@PathVariable Long petId) {
-        return ResponseEntity.ok(petService.deletePet(petId));
+    public ResponseEntity<PetResponse> deletePet(@CurrentUser UUID userId, @PathVariable Long petId) {
+        return ResponseEntity.ok(petService.deletePet(userId, petId));
     }
 
     @GetMapping("/{petId}")

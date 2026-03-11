@@ -15,5 +15,22 @@ public class PetRequestDto {
     private String gender;
     private String description;
 
+    private String size;
+    private String color;
+    private String activityLevel;
+    private String temperament;
+
+    private Boolean vaccinated;
+    private Boolean neutered;
+    private String specialNeeds;
+
+    private String city;
+    private String state;
+    private String country;
+
+    private List<String> tags;
+
     private List<MultipartFile> images;
+
+    public Integer CoverImageIndex;
 }

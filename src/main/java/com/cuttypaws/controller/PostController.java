@@ -66,13 +66,6 @@ public class PostController {
     }
 
     // ================== GET ALL POSTS FOR FEED ==================
-//    @GetMapping("/get-all")
-//    public ResponseEntity<PostResponse> getAllPosts() {
-//        // Feed must respect logged-in user for "isLikedByCurrentUser"
-//        PostResponse response = postService.getAllPosts();
-//        return ResponseEntity.status(response.getStatus()).body(response);
-//    }
-
     @GetMapping("/get-all")
     public ResponseEntity<FeedPageResponse> feed(
             @RequestParam(required = false) LocalDateTime cursorCreatedAt,

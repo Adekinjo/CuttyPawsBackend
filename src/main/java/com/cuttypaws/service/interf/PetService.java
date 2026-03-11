@@ -1,6 +1,5 @@
 package com.cuttypaws.service.interf;
 
-
 import com.cuttypaws.dto.PetRequestDto;
 import com.cuttypaws.response.PetResponse;
 
@@ -10,9 +9,9 @@ public interface PetService {
 
     PetResponse createPet(UUID userId, PetRequestDto request);
 
-    PetResponse updatePet(Long petId, PetRequestDto request);
+    PetResponse updatePet(UUID userId, Long petId, PetRequestDto request);
 
-    PetResponse deletePet(Long petId);
+    PetResponse deletePet(UUID userId, Long petId);
 
     PetResponse getPetById(Long petId);
 
