@@ -237,12 +237,12 @@ public class PetServiceImpl implements PetService {
     }
 
     @Override
-    @Cacheable(
-            value = "petsByUser",
-            key = "#userId",
-            condition = "@cacheToggleService.isEnabled()",
-            unless = "#result == null || #result.petList == null"
-    )
+//    @Cacheable(
+//            value = "petsByUser",
+//            key = "#userId",
+//            condition = "@cacheToggleService.isEnabled()",
+//            unless = "#result == null || #result.petList == null"
+//    )
     public PetResponse getMyPets(UUID userId) {
         try {
             List<PetDto> petDtos = petRepo.findByUserId(userId).stream()
