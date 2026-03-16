@@ -45,13 +45,27 @@ public class PetController {
         return ResponseEntity.ok(petService.getPetById(petId));
     }
 
+//    @GetMapping("/my-pets")
+//    public ResponseEntity<PetResponse> getMyPets(@CurrentUser UUID userId) {
+//        return ResponseEntity.ok(petService.getMyPets(userId));
+//    }
     @GetMapping("/my-pets")
     public ResponseEntity<PetResponse> getMyPets(@CurrentUser UUID userId) {
-        return ResponseEntity.ok(petService.getMyPets(userId));
+        System.out.println("DEBUG /pet/my-pets userId = " + userId);
+        PetResponse response = petService.getMyPets(userId);
+        System.out.println("DEBUG /pet/my-pets service response = " + response);
+        return ResponseEntity.ok(response);
     }
 
+//    @GetMapping("/all")
+//    public ResponseEntity<PetResponse> getAllPets() {
+//        return ResponseEntity.ok(petService.getAllPets());
+//    }
     @GetMapping("/all")
     public ResponseEntity<PetResponse> getAllPets() {
-        return ResponseEntity.ok(petService.getAllPets());
+        System.out.println("DEBUG /pet/all called");
+        PetResponse response = petService.getAllPets();
+        System.out.println("DEBUG /pet/all response status = " + response.getStatus());
+        return ResponseEntity.ok(response);
     }
 }

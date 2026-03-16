@@ -32,5 +32,5 @@ public class PetRequestDto {
 
     private List<MultipartFile> images;
 
-    public Integer CoverImageIndex;
+    private Integer CoverImageIndex;
 }
