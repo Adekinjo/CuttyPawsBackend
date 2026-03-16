@@ -215,6 +215,7 @@ public class PetServiceImpl implements PetService {
             condition = "@cacheToggleService.isEnabled()",
             unless = "#result == null || #result.pet == null"
     )
+    @Transactional(readOnly = true)
     public PetResponse getPetById(Long petId) {
         try {
             Pet pet = petRepo.findWithDetailsById(petId)
@@ -243,6 +244,7 @@ public class PetServiceImpl implements PetService {
             condition = "@cacheToggleService.isEnabled()",
             unless = "#result == null || #result.petList == null"
     )
+    @Transactional(readOnly = true)
     public PetResponse getMyPets(UUID userId) {
         try {
             List<PetDto> petDtos = petRepo.findByUserId(userId).stream()
@@ -271,6 +273,7 @@ public class PetServiceImpl implements PetService {
             condition = "@cacheToggleService.isEnabled()",
             unless = "#result == null || #result.petList == null || #result.petList.isEmpty()"
     )
+    @Transactional(readOnly = true)
     public PetResponse getAllPets() {
         try {
             List<PetDto> petDtos = petRepo.findAll().stream()

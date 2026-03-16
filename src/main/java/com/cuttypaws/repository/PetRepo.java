@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface PetRepo extends JpaRepository<Pet, Long> {
@@ -17,5 +18,5 @@ public interface PetRepo extends JpaRepository<Pet, Long> {
     List<Pet> findAll();
 
     @EntityGraph(attributePaths = {"user", "images"})
-    java.util.Optional<Pet> findWithDetailsById(Long id);
+    Optional<Pet> findWithDetailsById(Long id);
 }
