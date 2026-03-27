@@ -23,15 +23,15 @@ public class AwsS3Service {
     private final S3Client s3Client;
 
     public AwsS3Service(
-            @Value("${aws.s3.access}") String access,
-            @Value("${aws.s3.secrete}") String secret,
-            @Value("${aws.s3.bucket}") String bucketName,
-            @Value("${aws.s3.region:us-east-1}") String region
+            @Value("${aws.access-key-id}") String accessKey,
+            @Value("${aws.secret-access-key}") String secretKey,
+            @Value("${aws.s3.bucket-name}") String bucketName,
+            @Value("${aws.region:us-east-1}") String region
     ) {
         this.bucketName = bucketName;
         this.region = region;
 
-        AwsBasicCredentials creds = AwsBasicCredentials.create(access, secret);
+        AwsBasicCredentials creds = AwsBasicCredentials.create(accessKey, secretKey);
         this.s3Client = S3Client.builder()
                 .credentialsProvider(StaticCredentialsProvider.create(creds))
                 .region(Region.of(region))
@@ -65,7 +65,6 @@ public class AwsS3Service {
                     .build();
 
             s3Client.putObject(put, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
-
             return buildPublicUrl(key);
 
         } catch (IOException e) {
