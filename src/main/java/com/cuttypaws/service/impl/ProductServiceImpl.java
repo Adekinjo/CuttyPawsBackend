@@ -40,6 +40,8 @@ public class ProductServiceImpl implements ProductService {
     private final CategoryRepo categoryRepo;
     private final ProductMapper productMapper;
     private final AwsS3Service awsS3Service;
+    private final ServiceProfileRepo serviceProfileRepo;
+    private final ServiceMediaRepo serviceMediaRepo;
 
 
 
@@ -776,44 +778,135 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResponse getSearchSuggestions(String query) {
-        if (query == null || query.length() < 2) {
+        if (query == null || query.trim().length() < 2) {
             return ProductResponse.builder()
                     .status(200)
                     .suggestions(List.of())
                     .build();
         }
 
-        // Get all matching entities
-        List<Product> products = productRepo.findByNameContaining(query);
-        List<Category> categories = categoryRepo.searchCategories(query);
-        List<SubCategory> subCategories = subCategoryRepo.searchSubCategories(query);
+        String cleanedQuery = query.trim();
 
-        // Map to DTOs
-        List<SearchSuggestionDto> suggestions = Stream.of(
-                products.stream().map(p -> SearchSuggestionDto.builder()
-                        .id(p.getId())
+        List<Product> products = productRepo.findByNameContainingOrDescriptionContaining(cleanedQuery, cleanedQuery);
+        List<Category> categories = categoryRepo.searchCategories(cleanedQuery);
+        List<SubCategory> subCategories = subCategoryRepo.searchSubCategories(cleanedQuery);
+
+        List<ServiceProfile> servicesByName =
+                serviceProfileRepo.findTop8ByStatusAndBusinessNameContainingIgnoreCaseOrderByCreatedAtDesc(
+                        com.cuttypaws.enums.ServiceStatus.ACTIVE,
+                        cleanedQuery
+                );
+
+        List<ServiceProfile> servicesByDescription =
+                serviceProfileRepo.findTop8ByStatusAndDescriptionContainingIgnoreCaseOrderByCreatedAtDesc(
+                        com.cuttypaws.enums.ServiceStatus.ACTIVE,
+                        cleanedQuery
+                );
+
+        List<ServiceProfile> servicesByCity =
+                serviceProfileRepo.findTop8ByStatusAndCityContainingIgnoreCaseOrderByCreatedAtDesc(
+                        com.cuttypaws.enums.ServiceStatus.ACTIVE,
+                        cleanedQuery
+                );
+
+        List<SearchSuggestionDto> productSuggestions = products.stream()
+                .limit(8)
+                .map(p -> SearchSuggestionDto.builder()
+                        .id(String.valueOf(p.getId()))
+                        .routeId(String.valueOf(p.getId()))
                         .name(p.getName())
                         .type("product")
-                        .imageUrl(!p.getImages().isEmpty() ? p.getImages().get(0).getImageUrl() : null)
-                        .build()),
-                categories.stream().map(c -> SearchSuggestionDto.builder()
-                        .id(c.getId())
+                        .imageUrl(
+                                p.getImages() != null && !p.getImages().isEmpty()
+                                        ? p.getImages().get(0).getImageUrl()
+                                        : null
+                        )
+                        .category(p.getCategory() != null ? p.getCategory().getName() : "uncategorized")
+                        .subCategory(p.getSubCategory() != null ? p.getSubCategory().getName() : "uncategorized")
+                        .build())
+                .toList();
+
+        List<SearchSuggestionDto> categorySuggestions = categories.stream()
+                .limit(5)
+                .map(c -> SearchSuggestionDto.builder()
+                        .id(String.valueOf(c.getId()))
+                        .routeId(String.valueOf(c.getId()))
                         .name(c.getName())
                         .type("category")
-                        .build()),
-                subCategories.stream().map(s -> SearchSuggestionDto.builder()
-                        .id(s.getId())
+                        .build())
+                .toList();
+
+        List<SearchSuggestionDto> subCategorySuggestions = subCategories.stream()
+                .limit(5)
+                .map(s -> SearchSuggestionDto.builder()
+                        .id(String.valueOf(s.getId()))
+                        .routeId(String.valueOf(s.getId()))
                         .name(s.getName())
                         .type("subcategory")
-                        .parentCategory(s.getCategory().getName())
+                        .parentCategory(s.getCategory() != null ? s.getCategory().getName() : null)
                         .build())
-        ).flatMap(s -> s).collect(Collectors.toList());
+                .toList();
+
+        List<SearchSuggestionDto> serviceSuggestions = Stream.of(
+                        servicesByName.stream(),
+                        servicesByDescription.stream(),
+                        servicesByCity.stream()
+                )
+                .flatMap(stream -> stream)
+                .collect(Collectors.toMap(
+                        ServiceProfile::getId,
+                        service -> service,
+                        (existing, replacement) -> existing,
+                        LinkedHashMap::new
+                ))
+                .values()
+                .stream()
+                .limit(8)
+                .map(service -> {
+                    List<ServiceMedia> mediaList = serviceMediaRepo.findByServiceProfileIdOrderByDisplayOrderAsc(service.getId());
+
+                    String coverImageUrl = mediaList.stream()
+                            .filter(item -> Boolean.TRUE.equals(item.getIsCover()))
+                            .map(ServiceMedia::getMediaUrl)
+                            .findFirst()
+                            .orElse(mediaList.isEmpty()
+                                    ? "http://localhost:9393/images/cuttypaws-logo.png"
+                                    : mediaList.get(0).getMediaUrl());
+
+                    return SearchSuggestionDto.builder()
+                            .id(service.getId() != null ? service.getId().toString() : null)
+                            .routeId(
+                                    service.getUser() != null && service.getUser().getId() != null
+                                            ? service.getUser().getId().toString()
+                                            : null
+                            )
+                            .name(
+                                    service.getBusinessName() != null && !service.getBusinessName().isBlank()
+                                            ? service.getBusinessName()
+                                            : "Service Provider"
+                            )
+                            .type("service")
+                            .imageUrl(coverImageUrl)
+                            .serviceType(service.getServiceType() != null ? service.getServiceType().name() : null)
+                            .city(service.getCity())
+                            .state(service.getState())
+                            .build();
+                })
+                .toList();
+
+        List<SearchSuggestionDto> suggestions = Stream.of(
+                        productSuggestions.stream(),
+                        serviceSuggestions.stream(),
+                        categorySuggestions.stream(),
+                        subCategorySuggestions.stream()
+                )
+                .flatMap(stream -> stream)
+                .collect(Collectors.toList());
 
         return ProductResponse.builder()
                 .status(200)
                 .suggestions(suggestions)
                 .build();
     }
-
 
 }

@@ -37,7 +37,6 @@ public class OrderItemServiceImpl implements OrderItemService {
     private final UserService userService;
     private final OrderMapper orderMapper;
     private final EmailService emailService;
-    private final PaymentService paymentService;
 
 
     @Transactional
@@ -53,7 +52,7 @@ public class OrderItemServiceImpl implements OrderItemService {
                         return new NotFoundException("Payment not found");
                     });
 
-            if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            if (payment.getStatus() != PaymentStatus.PAID) {
                 log.error("Payment is not successful. Payment status: {}", payment.getStatus());
                 throw new IllegalArgumentException("Payment is not successful. Please complete payment first.");
             }
@@ -158,7 +157,7 @@ public class OrderItemServiceImpl implements OrderItemService {
             // Send notification to the company (if applicable)
             for (OrderItem orderItem : order.getOrderItemList()) {
                 User company = orderItem.getProduct().getUser(); // Assuming the product has a reference to the company/user who added it
-                if (company != null && company.getUserRole() == UserRole.ROLE_COMPANY) {
+                if (company != null && company.getUserRole() == UserRole.ROLE_SELLER) {
                     sendCompanyOrderNotification(company, order, orderItem);
                 }
             }
@@ -174,7 +173,7 @@ public class OrderItemServiceImpl implements OrderItemService {
             String body = "Dear " + user.getName() + ",\n\n"
                     + "Thank you for your order. Here are your order details:\n\n"
                     + "Order ID: " + order.getId() + "\n"
-                    + "Total Price: NGN" + order.getTotalPrice() + "\n"
+                    + "Total Price: USD" + order.getTotalPrice() + "\n"
                     + "Delivery Address: " + user.getAddress().getStreet() + ", "
                     + user.getAddress().getCity() + ", "
                     + user.getAddress().getState() + " "
@@ -182,7 +181,7 @@ public class OrderItemServiceImpl implements OrderItemService {
                     + user.getAddress().getCountry() + "\n\n"
                     + "You will receive another email once your order has been shipped.\n\n"
                     + "Best regards,\n"
-                    + "The Kinjomarket Team";
+                    + "The CuttyPaws Team";
 
             emailService.sendEmail(user.getEmail(), subject, body);
             log.info("Order confirmation email sent to user: {}", user.getEmail());
@@ -201,7 +200,7 @@ public class OrderItemServiceImpl implements OrderItemService {
                     + "Customer Name: " + user.getName() + "\n"
                     + "Customer Email: " + user.getEmail() + "\n"
                     + "Order ID: " + order.getId() + "\n"
-                    + "Total Price: NGN" + order.getTotalPrice() + "\n"
+                    + "Total Price: USD" + order.getTotalPrice() + "\n"
                     + "Delivery Address: " + user.getAddress().getStreet() + ", "
                     + user.getAddress().getCity() + ", "
                     + user.getAddress().getState() + " "
@@ -211,7 +210,7 @@ public class OrderItemServiceImpl implements OrderItemService {
 
             for (OrderItem orderItem : order.getOrderItemList()) {
                 body += "Product: " + orderItem.getProduct().getName() + ", Quantity: "
-                        + orderItem.getQuantity() + ", Price: NGN"
+                        + orderItem.getQuantity() + ", Price: USD"
                         + orderItem.getPrice() + "\n";
             }
 

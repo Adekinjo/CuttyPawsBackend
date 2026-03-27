@@ -1,9 +1,6 @@
 package com.cuttypaws.response;
 
-import com.cuttypaws.dto.PostDto;
-import com.cuttypaws.dto.ProductDto;
-import com.cuttypaws.dto.UserDto;
-import com.cuttypaws.dto.UserStatsDto;
+import com.cuttypaws.dto.*;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
@@ -32,11 +29,13 @@ public class UserResponse {
         this.message = message;
         this.accessToken = accessToken;
     }
+
     private List<ProductDto> productList;
 
     private int status;
     private String message;
     private LocalDateTime timeStamp;
+
     private List<UserDto> userList;
     private UserDto user;
 
@@ -44,9 +43,22 @@ public class UserResponse {
     private List<PostDto> postList;
     private UserStatsDto userStats;
 
-
     private String token;
     private String role;
     private String expirationTime;
 
+    private ServiceProfileDto serviceProfile;
+    private List<ServiceProfileDto> serviceProfiles;
+
+    private ServiceDashboardDto serviceDashboard;
+
+    private ServiceAdSubscriptionDto serviceAdSubscription;
+    private List<ServiceAdSubscriptionDto> serviceAdSubscriptions;
+
+    private ServiceReviewDto serviceReview;
+    private List<ServiceReviewDto> serviceReviews;
+    private java.util.List<ServiceMediaDto> serviceMediaList;
+
+    private ServiceBookingDto serviceBooking;
+    private List<ServiceBookingDto> serviceBookings;
 }

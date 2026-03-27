@@ -31,11 +31,11 @@ public interface UserRepo extends JpaRepository<User, UUID> {
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.address LEFT JOIN FETCH u.orderItemsList")
     List<User> findAllWithAddressAndOrders();
 
-    @Query("SELECT u FROM User u WHERE u.userRole = com.cuttypaws.enums.UserRole.ROLE_COMPANY")
-    List<User> findAllByRoleCompany();
+    @Query("SELECT u FROM User u WHERE u.userRole = com.cuttypaws.enums.UserRole.ROLE_SELLER")
+    List<User> findAllSellers();
 
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.products WHERE u.id = :id AND u.userRole = com.cuttypaws.enums.UserRole.ROLE_COMPANY")
-    Optional<User> findCompanyWithProductsById(@Param("id") UUID id);
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.products WHERE u.id = :id AND u.userRole = com.cuttypaws.enums.UserRole.ROLE_SELLER")
+    Optional<User> findSellerWithProductsById(@Param("id") UUID id);
 
 }
 

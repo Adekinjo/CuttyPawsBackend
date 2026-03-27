@@ -1,5 +1,6 @@
 package com.cuttypaws.response;
 
+import com.cuttypaws.enums.PaymentPurpose;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
@@ -27,4 +28,5 @@ public class PaymentResponse {
     private String reference;
     private Long paymentId;
     private UUID userId;
+    private PaymentPurpose paymentPurpose;
 }

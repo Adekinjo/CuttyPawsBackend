@@ -81,7 +81,9 @@ public class ProductMapper {
         defaultColors.put("magenta", "#FF00FF");
         defaultColors.put("dark gray", "#404040");
         defaultColors.put("gray", "#808080");
-        defaultColors.put("light gray", "#C0C0C0");
+        defaultColors.put("cream beige", "#F5E6C8");
+        defaultColors.put("warm brown", "#B97A56");
+        defaultColors.put("light gray", "#D3D3D3");
         defaultColors.put("purple", "#800080");
         defaultColors.put("pink", "#FFC0CB");
         defaultColors.put("brown", "#A52A2A");

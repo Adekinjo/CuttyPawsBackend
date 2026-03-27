@@ -77,4 +77,17 @@ public interface ProductRepo extends JpaRepository<Product, Long> {
     @EntityGraph(attributePaths = {"images"})
     List<Product> findTop4ByOrderByViewCountDesc();
 
+    @Query("""
+    SELECT DISTINCT p
+    FROM Product p
+    LEFT JOIN p.category c
+    LEFT JOIN p.subCategory s
+    WHERE
+        LOWER(p.name) LIKE LOWER(CONCAT('%', :term, '%'))
+        OR LOWER(p.description) LIKE LOWER(CONCAT('%', :term, '%'))
+        OR LOWER(c.name) LIKE LOWER(CONCAT('%', :term, '%'))
+        OR LOWER(s.name) LIKE LOWER(CONCAT('%', :term, '%'))
+""")
+    List<Product> searchBroadProductTerm(@Param("term") String term);
+
 }

@@ -7,6 +7,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -15,7 +16,7 @@ public class OrderRequest {
     private BigDecimal totalPrice;
     private List<OrderItemRequest> items;
 
-    public Long userId;
+    public UUID userId;
 
     private String paymentMethod;
 

@@ -43,6 +43,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     @Caching(evict = {
+            @CacheEvict(value = "mixed-feed", allEntries = true),
             @CacheEvict(value = "postsAll", allEntries = true),
             @CacheEvict(value = "postsByUser", allEntries = true)
     })
@@ -88,6 +89,10 @@ public class PostServiceImpl implements PostService {
 
                         return PostMedia.builder()
                                 .mediaUrl(url)
+                                .streamUrl(url)
+                                .thumbnailUrl(null)
+                                .durationSeconds(null)
+                                .processed(Boolean.TRUE)
                                 .mediaType(type)
                                 .post(post)
                                 .build();
@@ -128,6 +133,7 @@ public class PostServiceImpl implements PostService {
     @Override
     @Transactional
     @Caching(evict = {
+            @CacheEvict(value = "mixed-feed", allEntries = true),
             @CacheEvict(value = "postById", key = "#postId"),
             @CacheEvict(value = "postsAll", allEntries = true),
             @CacheEvict(value = "postsByUser", allEntries = true)
@@ -179,6 +185,10 @@ public class PostServiceImpl implements PostService {
                     PostMedia pm = PostMedia.builder()
                             .mediaUrl(url)
                             .mediaType(type)
+                            .streamUrl(url)
+                            .thumbnailUrl(null)
+                            .durationSeconds(null)
+                            .processed(Boolean.TRUE)
                             .post(post)
                             .build();
 
@@ -235,6 +245,12 @@ public class PostServiceImpl implements PostService {
 
     @Override
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "mixed-feed", allEntries = true),
+            @CacheEvict(value = "postById", key = "#postId"),
+            @CacheEvict(value = "postsAll", allEntries = true),
+            @CacheEvict(value = "postsByUser", allEntries = true)
+    })
     public PostResponse deletePost(UUID userId, Long postId) {
         try {
             log.warn("🗑 Deleting post with ID: {} by user: {}", postId, userId);

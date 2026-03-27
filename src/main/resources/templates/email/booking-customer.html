@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Booking Confirmed</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f4f6f8;font-family:Arial,sans-serif;color:#102a43;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f8;padding:24px 12px;">
+    <tr>
+        <td align="center">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                   style="max-width:640px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 8px 30px rgba(16,42,67,0.08);">
+                <tr>
+                    <td align="center" style="background:#102a43;padding:28px 24px 20px;">
+                        <img src="cid:cuttypawsLogo" alt="CuttyPaws Logo"
+                             width="120"
+                             style="display:block;margin:0 auto 16px;height:auto;border:0;outline:none;text-decoration:none;" />
+
+                        <h1 style="margin:0;font-size:28px;line-height:1.2;color:#ffffff;font-weight:700;">
+                            Booking Confirmed
+                        </h1>
+
+                        <p style="margin:14px 0 0;font-size:15px;line-height:1.7;color:#f8fafc;">
+                            Hello <strong th:text="${customerName}" style="color:#ffffff;">Customer</strong>,
+                            <br><br>
+                            Your service booking on <strong style="color:#ffffff;">CuttyPaws</strong> has been confirmed successfully.
+                        </p>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="padding:24px;">
+                        <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;padding:20px;">
+                            <h2 style="margin:0 0 16px;font-size:18px;color:#102a43;">Booking Details</h2>
+
+                            <p><strong>Provider Name:</strong> <span th:text="${providerName}">Provider</span></p>
+                            <p><strong>Business Name:</strong> <span th:text="${businessName}">Business</span></p>
+                            <p><strong>Service Type:</strong> <span th:text="${serviceType}">PET_WALKER</span></p>
+                            <p><strong>Pet Name:</strong> <span th:text="${petName}">Bruno</span></p>
+                            <p><strong>Pet Type:</strong> <span th:text="${petType}">Dog</span></p>
+                            <p><strong>Service Address:</strong> <span th:text="${serviceAddress}">Address</span></p>
+                            <p><strong>Notes:</strong> <span th:text="${notes}">Notes</span></p>
+                            <p><strong>Start Time:</strong> <span th:text="${startTime}">Start</span></p>
+                            <p><strong>End Time:</strong> <span th:text="${endTime}">End</span></p>
+                            <p><strong>Timezone:</strong> <span th:text="${timezone}">America/Chicago</span></p>
+                            <p><strong>Amount Paid:</strong> $<span th:text="${amountPaid}">50.00</span></p>
+                            <p><strong>Payment Reference:</strong> <span th:text="${paymentReference}">SBK-123</span></p>
+                            <p><strong>Booking Status:</strong> <span th:text="${bookingStatus}">CONFIRMED</span></p>
+                            <p><strong>Payment Status:</strong> <span th:text="${paymentStatus}">PAID</span></p>
+                        </div>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td style="padding:0 24px 24px;">
+                        <div style="background:#fff7ed;border-left:4px solid #f97316;border-radius:12px;padding:16px;color:#243b53;font-size:14px;line-height:1.7;">
+                            Thank you for using CuttyPaws. Please keep this email for your records.
+                        </div>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td align="center" style="padding:20px 24px;background:#102a43;color:#ffffff;">
+                        <p style="margin:0 0 8px;font-size:14px;font-weight:bold;">CuttyPaws</p>
+                        <p style="margin:0;font-size:12px;line-height:1.6;opacity:0.9;">
+                            Pet social, pet services, and pet marketplace — all in one place.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

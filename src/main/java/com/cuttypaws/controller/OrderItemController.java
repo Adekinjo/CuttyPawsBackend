@@ -24,14 +24,14 @@ public class OrderItemController {
     private final OrderItemService orderItemService;
 
     @PutMapping("/update-item-status/{orderItemId}")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_CUSTOMER_SERVICE', 'ROLE_COMPANY')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_CUSTOMER_SERVICE', 'ROLE_SELLER')")
     public ResponseEntity<OrderResponse> updateOrderItemStatus(@PathVariable Long orderItemId, @RequestParam String status){
         return ResponseEntity.ok(orderItemService.updateOrderItemStatus(orderItemId, status));
     }
 
 
     @GetMapping("/filter")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_CUSTOMER_SERVICE', 'ROLE_COMPANY', 'ROLE_USER')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_CUSTOMER_SERVICE', 'ROLE_SELLER', 'ROLE_USER')")
     public ResponseEntity<OrderResponse> filterOrderItems(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)LocalDateTime endDate,
@@ -49,7 +49,7 @@ public class OrderItemController {
     }
 
     @GetMapping("/my-orders")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_CUSTOMER_SERVICE', 'ROLE_COMPANY', 'ROLE_USER')")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_CUSTOMER_SERVICE', 'ROLE_SELLER', 'ROLE_USER')")
     public ResponseEntity<OrderResponse> getMyOrders(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size
@@ -60,7 +60,7 @@ public class OrderItemController {
 
 
     @GetMapping("/company/{companyId}/orders")
-    @PreAuthorize("hasAuthority('ROLE_COMPANY')")
+    @PreAuthorize("hasAuthority('ROLE_SELLER')")
     public ResponseEntity<OrderResponse> getCompanyProductOrders(
             @PathVariable UUID companyId,
             @RequestParam(defaultValue = "0") int page,

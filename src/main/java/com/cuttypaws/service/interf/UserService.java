@@ -43,10 +43,7 @@ public interface UserService {
     // Fetch all users with their addresses and orders
     List<UserDto> getAllUsersWithAddressAndOrders();
 
-    UserResponse getAllUsersWithRoleCompany();
-
-    UserResponse getCompanyWithProducts(UUID companyId);
-    //Response loginCompany(LoginRequest loginRequest);
-
+    UserResponse getAllSellers();
+    UserResponse getSellerWithProducts(UUID sellerId);
 
 }

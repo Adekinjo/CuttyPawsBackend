@@ -16,8 +16,6 @@ public interface CommentRepo extends JpaRepository<Comment, Long> {
     @Query("SELECT c FROM Comment c WHERE c.post.id = :postId AND c.parentComment IS NULL")
     Page<Comment> findTopLevelComments(@Param("postId") Long postId, Pageable pageable);
 
-    List<Comment> findByParentCommentIdOrderByCreatedAtAsc(Long parentId);
-
     Long countByPostId(Long postId);
 
     // ✅ NEW: batch counts for feed
@@ -28,4 +26,12 @@ public interface CommentRepo extends JpaRepository<Comment, Long> {
         GROUP BY c.post.id
     """)
     List<Object[]> countCommentsByPostIds(@Param("postIds") List<Long> postIds);
+
+    @Query("""
+        SELECT c.post.id, COUNT(c)
+        FROM Comment c
+        WHERE c.post.id IN :postIds
+        GROUP BY c.post.id
+    """)
+    List<Object[]> countByPostIds(@Param("postIds") List<Long> postIds);
 }

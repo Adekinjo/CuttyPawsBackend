@@ -1,4 +1,3 @@
-// SearchSuggestionDto.java
 package com.cuttypaws.dto;
 
 import lombok.AllArgsConstructor;
@@ -11,9 +10,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SearchSuggestionDto {
-    private Long id;
+    private String id;
     private String name;
-    private String type; // "product", "category", "subcategory"
-    private String parentCategory; // Only for subcategory
-    private String imageUrl; // For products
+    private String type; // product, category, subcategory, service
+
+    private String parentCategory;
+    private String imageUrl;
+
+    private String category;
+    private String subCategory;
+
+    private String serviceType;
+    private String city;
+    private String state;
+    private String routeId;
 }

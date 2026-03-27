@@ -1,5 +1,6 @@
 package com.cuttypaws.dto;
 
+import com.cuttypaws.enums.PaymentPurpose;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -11,9 +12,5 @@ public class PaymentRequest {
     private String email;
     private String currency;
     private UUID userId;
-    private Long orderId;
-    private String transactionId;
-    private String method;
-    private String reference;
+    private PaymentPurpose paymentPurpose;
 }
-

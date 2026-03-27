@@ -70,11 +70,11 @@ public class UserController {
         return ResponseEntity.ok(users);
     }
 
-    @GetMapping("/role-company")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')") // Only admins can access this endpoint
-    public ResponseEntity<UserResponse> getAllUsersWithRoleCompany() {
+    @GetMapping("/role-seller")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<UserResponse> getAllSellers() {
         try {
-            UserResponse response = userService.getAllUsersWithRoleCompany();
+            UserResponse response = userService.getAllSellers();
             return ResponseEntity.ok(response);
         } catch (InvalidCredentialException e) {
             return ResponseEntity.status(403).body(
@@ -87,7 +87,7 @@ public class UserController {
             return ResponseEntity.status(500).body(
                     UserResponse.builder()
                             .status(500)
-                            .message("Failed to fetch users with ROLE_COMPANY: " + e.getMessage())
+                            .message("Failed to fetch sellers: " + e.getMessage())
                             .build()
             );
         }

@@ -1,5 +1,9 @@
 package com.cuttypaws.enums;
 
 public enum PaymentStatus {
-    PENDING, SUCCESS, FAILED
+    PENDING,
+    PAID,
+    FAILED,
+    CANCELLED,
+    EXPIRED
 }

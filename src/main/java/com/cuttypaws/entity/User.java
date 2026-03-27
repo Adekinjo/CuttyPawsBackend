@@ -11,7 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@Data
+@Getter
+@Setter
 @Entity
 @Table(name = "users")
 @Builder
@@ -25,56 +26,71 @@ public class User {
     @Column(columnDefinition = "UUID", updatable = false, nullable = false)
     private UUID id;
 
-
     @NotBlank(message = "Name is required")
+    @Column(nullable = false)
     private String name;
 
-    @Column(unique = true)
     @NotBlank(message = "Email is required")
+    @Column(nullable = false, unique = true)
     private String email;
 
     @Column(name = "profile_image_url")
     private String profileImageUrl;
 
-    @Column(name = "cover image url")
+    @Column(name = "cover_image_url")
     private String coverImageUrl;
 
-    @Column(name = "password")
-    @NotBlank(message = "password is required")
-    private  String password;
+    @NotBlank(message = "Password is required")
+    @Column(nullable = false)
+    private String password;
 
-    @Column(name = "phone_number")
     @NotBlank(message = "Phone number is required")
+    @Column(name = "phone_number", nullable = false, unique = true)
     private String phoneNumber;
 
     @Enumerated(EnumType.STRING)
-    private UserRole userRole;
-
-    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @ToString.Exclude
-    private List<OrderItem> orderItemsList;
-
+    @Column(name = "user_role", nullable = false)
+    @Builder.Default
+    private UserRole userRole = UserRole.ROLE_USER;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL, mappedBy = "user")
     @ToString.Exclude
     private Address address;
 
-    @Column(name = "created_at")
-    private final LocalDateTime createdAt = LocalDateTime.now();
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
+    @Builder.Default
+    @OneToMany(mappedBy = "user", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ToString.Exclude
+    private List<OrderItem> orderItemsList = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Product> products;
+    @ToString.Exclude
+    private List<Product> products = new ArrayList<>();
+
+    @Column(name = "is_service_provider", nullable = false)
+    @Builder.Default
+    private Boolean isServiceProvider = false;
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @ToString.Exclude
+    private ServiceProfile serviceProfile;
+
+    @Column(name = "pets_count", nullable = false)
+    @Builder.Default
+    private Integer petsCount = 0;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    private List<Post> posts = new ArrayList<>();
 
     private String companyName;
     private String businessRegistrationNumber;
 
-    @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, orphanRemoval = true)
-    @ToString.Exclude
-    private List<Post> posts;
-
-    // Add blocked status
-    @Column(name = "is_blocked")
+    @Column(name = "is_blocked", nullable = false)
     @Builder.Default
     private Boolean isBlocked = false;
 
@@ -84,12 +100,6 @@ public class User {
     @Column(name = "blocked_at")
     private LocalDateTime blockedAt;
 
-    // Helper method to check if user is active
-    public boolean isActive() {
-        return !Boolean.TRUE.equals(isBlocked);
-    }
-
-    // Add to User entity
     @OneToMany(mappedBy = "follower", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @ToString.Exclude
     @Builder.Default
@@ -100,5 +110,14 @@ public class User {
     @Builder.Default
     private List<Follow> followers = new ArrayList<>();
 
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
 
+    public boolean isActive() {
+        return !Boolean.TRUE.equals(isBlocked);
+    }
 }

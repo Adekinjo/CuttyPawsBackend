@@ -78,6 +78,7 @@ public class RedisCacheConfig {
         Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
 
         // Product caches
+        cacheConfigs.put("mixed-feed", defaultConfig.entryTtl(Duration.ofMinutes(1)));
         cacheConfigs.put("products", defaultConfig.entryTtl(Duration.ofMinutes(30)));
         cacheConfigs.put("productById", defaultConfig.entryTtl(Duration.ofHours(2)));
 

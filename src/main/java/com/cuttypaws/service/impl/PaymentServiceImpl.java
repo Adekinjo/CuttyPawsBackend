@@ -1,17 +1,21 @@
 package com.cuttypaws.service.impl;
 
-import com.cuttypaws.dto.*;
-import com.cuttypaws.entity.*;
+import com.cuttypaws.dto.PaymentRequest;
+import com.cuttypaws.entity.Payment;
+import com.cuttypaws.entity.User;
+import com.cuttypaws.enums.PaymentProvider;
+import com.cuttypaws.enums.PaymentPurpose;
 import com.cuttypaws.enums.PaymentStatus;
-import com.cuttypaws.repository.*;
+import com.cuttypaws.repository.PaymentRepo;
+import com.cuttypaws.repository.UserRepo;
 import com.cuttypaws.response.PaymentResponse;
 import com.cuttypaws.service.interf.PaymentService;
+import com.stripe.model.checkout.Session;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,26 +24,22 @@ import java.util.UUID;
 @Slf4j
 public class PaymentServiceImpl implements PaymentService {
 
-    private final PayStackService payStackService;
     private final PaymentRepo paymentRepo;
     private final UserRepo userRepo;
+    private final StripeService stripeService;
 
     @Override
     @Transactional
     public PaymentResponse initializePayment(PaymentRequest request) {
         try {
-            log.info("🚀 PRODUCTION: Initializing payment for user: {}, amount: {}, email: {}",
-                    request.getUserId(), request.getAmount(), request.getEmail());
-
-            // Validate request
-            if (request.getAmount() == null || request.getAmount().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            if (request.getAmount() == null || request.getAmount().signum() <= 0) {
                 return PaymentResponse.builder()
                         .status(400)
-                        .message("Invalid amount: " + request.getAmount())
+                        .message("Invalid amount")
                         .build();
             }
 
-            if (request.getEmail() == null || request.getEmail().trim().isEmpty()) {
+            if (request.getEmail() == null || request.getEmail().isBlank()) {
                 return PaymentResponse.builder()
                         .status(400)
                         .message("Email is required")
@@ -47,44 +47,47 @@ public class PaymentServiceImpl implements PaymentService {
             }
 
             User user = userRepo.findById(request.getUserId())
-                    .orElseThrow(() -> new RuntimeException("User not found with ID: " + request.getUserId()));
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-            // Initialize payment with Paystack
-            Map<String, String> paymentInitResponse = payStackService.initializePayment(
-                    request.getAmount(),
-                    request.getEmail(),
-                    request.getCurrency()
-            );
+            PaymentPurpose purpose = request.getPaymentPurpose() == null
+                    ? PaymentPurpose.ORDER
+                    : request.getPaymentPurpose();
 
-            String authorizationUrl = paymentInitResponse.get("authorizationUrl");
-            String paystackReference = paymentInitResponse.get("reference");
-
-            // Create payment record
             Payment payment = new Payment();
             payment.setAmount(request.getAmount());
             payment.setEmail(request.getEmail());
-            payment.setCurrency(request.getCurrency());
-            payment.setMethod(request.getMethod());
-            payment.setReference(paystackReference);
+            payment.setCurrency(
+                    request.getCurrency() == null || request.getCurrency().isBlank()
+                            ? "USD"
+                            : request.getCurrency().toUpperCase()
+            );
+            payment.setProvider(PaymentProvider.STRIPE);
+            payment.setMethod("STRIPE");
+            payment.setReference(buildReference(purpose));
             payment.setStatus(PaymentStatus.PENDING);
+            payment.setPaymentPurpose(purpose);
             payment.setUser(user);
             payment.setTransactionId(UUID.randomUUID().toString());
 
             Payment savedPayment = paymentRepo.save(payment);
 
-            log.info("✅ PRODUCTION: Payment initialized successfully. Payment ID: {}, Reference: {}",
-                    savedPayment.getId(), paystackReference);
+            Session session = stripeService.createOrderCheckoutSession(savedPayment);
+
+            savedPayment.setCheckoutSessionId(session.getId());
+            savedPayment.setPaymentUrl(session.getUrl());
+            paymentRepo.save(savedPayment);
 
             return PaymentResponse.builder()
                     .status(200)
                     .message("Payment initialized successfully")
-                    .authorizationUrl(authorizationUrl)
-                    .reference(paystackReference)
+                    .authorizationUrl(session.getUrl())
+                    .reference(savedPayment.getReference())
                     .paymentId(savedPayment.getId())
+                    .paymentPurpose(savedPayment.getPaymentPurpose())
                     .build();
 
         } catch (Exception e) {
-            log.error("❌ PRODUCTION: Error initializing payment: {}", e.getMessage(), e);
+            log.error("Error initializing Stripe payment", e);
             return PaymentResponse.builder()
                     .status(500)
                     .message("Error initializing payment: " + e.getMessage())
@@ -96,24 +99,17 @@ public class PaymentServiceImpl implements PaymentService {
     @Transactional
     public PaymentResponse verifyPayment(String reference) {
         try {
-            log.info("🔍 PRODUCTION: Verifying payment with reference: {}", reference);
-
-            // First, check if payment exists in our database
             Optional<Payment> paymentOptional = paymentRepo.findByReference(reference);
             if (paymentOptional.isEmpty()) {
-                log.error("❌ PRODUCTION: Payment not found in database with reference: {}", reference);
                 return PaymentResponse.builder()
                         .status(404)
-                        .message("Payment not found with reference: " + reference)
+                        .message("Payment not found")
                         .build();
             }
 
             Payment payment = paymentOptional.get();
-            log.info("📋 PRODUCTION: Payment found in database. ID: {}, Status: {}", payment.getId(), payment.getStatus());
 
-            // If payment is already successful, return success
-            if (payment.getStatus() == PaymentStatus.SUCCESS) {
-                log.info("✅ PRODUCTION: Payment already verified as SUCCESS");
+            if (payment.getStatus() == PaymentStatus.PAID) {
                 return PaymentResponse.builder()
                         .status(200)
                         .message("Payment already verified successfully")
@@ -121,17 +117,23 @@ public class PaymentServiceImpl implements PaymentService {
                         .userId(payment.getUser().getId())
                         .amount(payment.getAmount())
                         .reference(payment.getReference())
+                        .paymentPurpose(payment.getPaymentPurpose())
                         .build();
             }
 
-            // Verify with Paystack
-            boolean isSuccessful = payStackService.verifyPayment(reference);
+            if (payment.getCheckoutSessionId() == null) {
+                return PaymentResponse.builder()
+                        .status(400)
+                        .message("Checkout session not found for payment")
+                        .build();
+            }
 
-            if (isSuccessful) {
-                payment.setStatus(PaymentStatus.SUCCESS);
+            Session session = stripeService.retrieveCheckoutSession(payment.getCheckoutSessionId());
+
+            if ("paid".equalsIgnoreCase(session.getPaymentStatus())) {
+                payment.setStatus(PaymentStatus.PAID);
+                payment.setPaymentIntentId(session.getPaymentIntent());
                 paymentRepo.save(payment);
-
-                log.info("🎉 PRODUCTION: Payment verified successfully. Payment ID: {}, Reference: {}", payment.getId(), reference);
 
                 return PaymentResponse.builder()
                         .status(200)
@@ -140,22 +142,25 @@ public class PaymentServiceImpl implements PaymentService {
                         .userId(payment.getUser().getId())
                         .amount(payment.getAmount())
                         .reference(payment.getReference())
-                        .build();
-            } else {
-                payment.setStatus(PaymentStatus.FAILED);
-                paymentRepo.save(payment);
-
-                log.warn("⚠️ PRODUCTION: Payment verification failed. Payment ID: {}, Reference: {}", payment.getId(), reference);
-
-                return PaymentResponse.builder()
-                        .status(400)
-                        .message("Payment verification failed")
-                        .paymentId(payment.getId())
-                        .reference(reference)
+                        .paymentPurpose(payment.getPaymentPurpose())
                         .build();
             }
+
+            if ("unpaid".equalsIgnoreCase(session.getPaymentStatus())) {
+                payment.setStatus(PaymentStatus.FAILED);
+                paymentRepo.save(payment);
+            }
+
+            return PaymentResponse.builder()
+                    .status(400)
+                    .message("Payment verification failed")
+                    .paymentId(payment.getId())
+                    .reference(reference)
+                    .paymentPurpose(payment.getPaymentPurpose())
+                    .build();
+
         } catch (Exception e) {
-            log.error("❌ PRODUCTION: Error verifying payment with reference {}: {}", reference, e.getMessage(), e);
+            log.error("Error verifying Stripe payment", e);
             return PaymentResponse.builder()
                     .status(500)
                     .message("Error verifying payment: " + e.getMessage())
@@ -164,7 +169,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
-    // Get payment by reference - FIXED VERSION
+    @Override
     public PaymentResponse getPaymentByReference(String reference) {
         try {
             Optional<Payment> paymentOptional = paymentRepo.findByReference(reference);
@@ -179,18 +184,35 @@ public class PaymentServiceImpl implements PaymentService {
 
             return PaymentResponse.builder()
                     .status(200)
-                    .message("Payment details retrieved")
+                    .message("Payment retrieved successfully")
                     .paymentId(payment.getId())
-                    .reference(payment.getReference())
-                    .amount(payment.getAmount())
                     .userId(payment.getUser().getId())
+                    .amount(payment.getAmount())
+                    .currency(payment.getCurrency())
+                    .reference(payment.getReference())
+                    .paymentPurpose(payment.getPaymentPurpose())
+                    .authorizationUrl(payment.getPaymentUrl())
                     .build();
 
         } catch (Exception e) {
+            log.error("Error getting payment by reference", e);
             return PaymentResponse.builder()
                     .status(500)
                     .message("Error retrieving payment: " + e.getMessage())
                     .build();
         }
+    }
+
+    private String buildReference(PaymentPurpose purpose) {
+        String prefix = switch (purpose) {
+            case ORDER -> "ORD-";
+            case SERVICE_AD -> "AD-";
+            case SERVICE_BOOKING -> "SBK-";
+        };
+
+        return prefix + UUID.randomUUID().toString()
+                .replace("-", "")
+                .substring(0, 16)
+                .toUpperCase();
     }
 }

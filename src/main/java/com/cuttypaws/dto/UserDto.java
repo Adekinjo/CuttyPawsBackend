@@ -53,5 +53,10 @@ public class UserDto {
     private String blockedReason;
     private LocalDateTime blockedAt;
     private Boolean isActive;
+
+    private Boolean isServiceProvider;
+    private Integer petsCount;
+    private ServiceProfileDto serviceProfile;
+    private String displayLabel;
 }
 

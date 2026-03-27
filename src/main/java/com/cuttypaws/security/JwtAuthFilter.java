@@ -31,32 +31,39 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        // Skip JWT validation for public endpoints
-        if (request.getRequestURI().startsWith("/auth/") ||
-                request.getRequestURI().equals("/post/get-all") ||
-                request.getRequestURI().startsWith("/post/get-all/") ||
-                request.getRequestURI().startsWith("/comments/") ||
-                request.getRequestURI().startsWith("/products/") ||
-                request.getRequestURI().startsWith("/product/suggestions") ||
-                request.getRequestURI().startsWith("/product/search") ||
-                request.getRequestURI().startsWith("/category/get-all") ||
-                request.getRequestURI().startsWith("/search") ||
-                request.getRequestURI().startsWith("/ws/") ||
-                request.getRequestURI().startsWith("/topic/") ||
-                request.getRequestURI().startsWith("/queue/") ||
-                request.getRequestURI().equals("/favicon.ico") ||
-                request.getRequestURI().startsWith("/error") ||
+        String uri = request.getRequestURI();
+        String method = request.getMethod();
 
-        request.getRequestURI().startsWith("/products/filter-by-name-and-category")) {
+        if (uri.startsWith("/auth/") ||
+                uri.equals("/post/get-all") ||
+                uri.equals("/ai/chat") ||
+                uri.equals("/ai/search/parse") ||
+                uri.equals("/ai/pet-health") ||
+                uri.equals("/ai/pet-health/image") ||
+                uri.startsWith("/post/get-all/") ||
+                uri.startsWith("/comments/") ||
+                uri.startsWith("/products/") ||
+                uri.startsWith("/product/suggestions") ||
+                uri.startsWith("/product/search") ||
+                uri.startsWith("/category/get-all") ||
+                uri.startsWith("/search") ||
+                uri.startsWith("/ws/") ||
+                uri.startsWith("/topic/") ||
+                uri.startsWith("/queue/") ||
+                uri.equals("/favicon.ico") ||
+                uri.startsWith("/error") ||
+                uri.startsWith("/services/public/") ||
+                ("GET".equalsIgnoreCase(method) && uri.startsWith("/service-reviews/")) ||
+                uri.startsWith("/products/filter-by-name-and-category")) {
             filterChain.doFilter(request, response);
             return;
         }
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+
+        if ("OPTIONS".equalsIgnoreCase(method)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // Extract and validate JWT token for other endpoints
         String token = getTokenFromRequest(request);
         if (token != null) {
             try {
@@ -64,13 +71,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
 
                 if (StringUtils.hasText(username) && jwtUtils.isTokenValid(token, userDetails)) {
-                    log.info("VALID JWT FOR {}", username);
-
-                    UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-                            userDetails, null, userDetails.getAuthorities()
-                    );
+                    UsernamePasswordAuthenticationToken authenticationToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails, null, userDetails.getAuthorities()
+                            );
                     authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 }
             } catch (ExpiredJwtException e) {
@@ -84,7 +89,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 response.getWriter().write("{\"status\":401,\"message\":\"Invalid token. Please log in again.\"}");
                 return;
             }
-
         }
 
         filterChain.doFilter(request, response);

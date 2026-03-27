@@ -1,15 +1,17 @@
 package com.cuttypaws.controller;
 
 import com.cuttypaws.dto.LoginRequest;
+import com.cuttypaws.dto.ServiceProviderRegistrationRequest;
 import com.cuttypaws.dto.UserDto;
 import com.cuttypaws.entity.User;
 import com.cuttypaws.repository.UserRepo;
 import com.cuttypaws.response.UserResponse;
 import com.cuttypaws.service.impl.DeviceAuthService;
+import com.cuttypaws.service.interf.ServiceProviderService;
 import com.cuttypaws.service.interf.UserService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -20,11 +22,11 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class AuthController {
 
-    @Autowired
     private final UserService userService;
     private final UserRepo userRepo;
     private final PasswordEncoder passwordEncoder;
     private final DeviceAuthService deviceAuthService;
+    private final ServiceProviderService serviceProviderService;
 
 
     @PostMapping("/register")
@@ -36,14 +38,19 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/register-company")
-    public ResponseEntity<?> registerCompany(@RequestBody UserDto registrationRequest) {
-        registrationRequest.setRole("ROLE_COMPANY");
+    @PostMapping("/register-service-provider")
+    public ResponseEntity<UserResponse> registerServiceProvider(
+            @Valid @RequestBody ServiceProviderRegistrationRequest request
+    ) {
+        UserResponse response = serviceProviderService.registerServiceProvider(request);
+        return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
+    @PostMapping("/register-seller")
+    public ResponseEntity<UserResponse> registerSeller(@RequestBody UserDto registrationRequest) {
+        registrationRequest.setRole("ROLE_SELLER");
         UserResponse response = userService.registerUser(registrationRequest);
-        if (response.getStatus() == 400) {
-            return ResponseEntity.badRequest().body(response);
-        }
-        return ResponseEntity.ok(response);
+        return ResponseEntity.status(response.getStatus()).body(response);
     }
 
     @PostMapping("/login")
