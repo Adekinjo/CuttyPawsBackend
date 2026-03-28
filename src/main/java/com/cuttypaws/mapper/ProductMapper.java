@@ -159,6 +159,11 @@ public class ProductMapper {
         defaultColors.put("snow", "#FFFAFA");
         defaultColors.put("ghost white", "#F8F8FF");
         defaultColors.put("floral white", "#FFFAF0");
+        defaultColors.put("silver gray", "#COCOCO");
+        defaultColors.put("caramel brown", "#C68642");
+        defaultColors.put("neon green", "#39FF14");
+        defaultColors.put("hot pink", "#FF4FA3");
+        defaultColors.put("camouflage", "#556B2F");
         // Add more defaults as needed
 
         return defaultColors.getOrDefault(colorName.toLowerCase(), "#CCCCCC");
