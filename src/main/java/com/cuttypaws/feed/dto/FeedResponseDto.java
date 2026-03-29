@@ -16,4 +16,7 @@ public class FeedResponseDto {
     private List<FeedItemDto> items;
     private Integer count;
     private LocalDateTime generatedAt;
+    private LocalDateTime nextCursorCreatedAt;
+    private Long nextCursorId;
+    private Boolean hasMore;
 }

@@ -23,9 +23,13 @@ public class FeedController {
     @GetMapping("/mixed")
     public ResponseEntity<FeedResponseDto> getMixedFeed(
             @CurrentUser UUID currentUserId,
-            @RequestParam(defaultValue = "20") int limit
+            @RequestParam(required = false) LocalDateTime cursorCreatedAt,
+            @RequestParam(required = false) Long cursorId,
+            @RequestParam(defaultValue = "12") int limit
     ) {
-        return ResponseEntity.ok(feedComposerService.getMixedFeed(currentUserId, limit));
+        return ResponseEntity.ok(
+                feedComposerService.getMixedFeed(currentUserId, cursorCreatedAt, cursorId, limit)
+        );
     }
 
     @GetMapping("/videos")
