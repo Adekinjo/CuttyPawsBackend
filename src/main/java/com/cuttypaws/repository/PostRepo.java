@@ -210,4 +210,11 @@ public interface PostRepo extends JpaRepository<Post, Long> {
             @Param("cursorId") Long cursorId,
             Pageable pageable
     );
+
+    @Query("""
+    SELECT p.id
+    FROM Post p
+    ORDER BY p.createdAt DESC, p.id DESC
+""")
+    List<Long> fetchRecentPostIds(Pageable pageable);
 }

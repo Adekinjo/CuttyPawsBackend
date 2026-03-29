@@ -3,26 +3,37 @@ package com.cuttypaws.feed.service.impl;
 import com.cuttypaws.dto.PostDto;
 import com.cuttypaws.dto.ProductDto;
 import com.cuttypaws.dto.ServiceProfileDto;
-import com.cuttypaws.entity.*;
+import com.cuttypaws.entity.Post;
+import com.cuttypaws.entity.Product;
+import com.cuttypaws.entity.ProductImage;
+import com.cuttypaws.entity.ServiceAdSubscription;
+import com.cuttypaws.entity.ServiceProfile;
 import com.cuttypaws.enums.PaymentStatus;
 import com.cuttypaws.feed.dto.FeedItemDto;
 import com.cuttypaws.feed.dto.FeedResponseDto;
 import com.cuttypaws.feed.enums.FeedItemType;
 import com.cuttypaws.feed.service.interf.FeedComposerService;
 import com.cuttypaws.mapper.PostMapper;
+import com.cuttypaws.repository.CommentRepo;
+import com.cuttypaws.repository.PostLikeRepo;
 import com.cuttypaws.repository.PostRepo;
 import com.cuttypaws.repository.ProductRepo;
 import com.cuttypaws.repository.ServiceAdSubscriptionRepo;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,6 +44,8 @@ public class FeedComposerServiceImpl implements FeedComposerService {
     private final ProductRepo productRepo;
     private final ServiceAdSubscriptionRepo serviceAdSubscriptionRepo;
     private final PostMapper postMapper;
+    private final PostLikeRepo postLikeRepo;
+    private final CommentRepo commentRepo;
 
     @Override
     @Cacheable(
@@ -43,11 +56,73 @@ public class FeedComposerServiceImpl implements FeedComposerService {
     )
     public FeedResponseDto getMixedFeed(UUID currentUserId, int limit) {
 
-        List<Post> posts = postRepo.findAllWithOwnerAndMedia()
-                .stream()
-                .limit(30)
+        int safeLimit = Math.min(Math.max(limit, 1), 50);
+
+        // 1. Fetch only the recent post IDs first
+        List<Long> postIds = postRepo.fetchRecentPostIds(PageRequest.of(0, 30));
+
+        // 2. Fetch full posts for those IDs
+        List<Post> posts = postIds.isEmpty()
+                ? List.of()
+                : postRepo.findAllWithOwnerAndMediaByIdIn(postIds);
+
+        // 3. Preserve the same order as the ID query
+        Map<Long, Post> postMap = posts.stream()
+                .collect(Collectors.toMap(Post::getId, Function.identity()));
+
+        List<Post> orderedPosts = postIds.stream()
+                .map(postMap::get)
+                .filter(Objects::nonNull)
                 .toList();
 
+        // 4. Batch like counts
+        Map<Long, Integer> likeCountMap = postIds.isEmpty()
+                ? Map.of()
+                : postLikeRepo.countLikesByPostIds(postIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> ((Long) row[1]).intValue()
+                ));
+
+        // 5. Batch comment counts
+        Map<Long, Integer> commentCountMap = postIds.isEmpty()
+                ? Map.of()
+                : commentRepo.countCommentsByPostIds(postIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> ((Long) row[1]).intValue()
+                ));
+
+        // 6. Batch liked-post lookup for current user
+        Set<Long> likedPostIds = (currentUserId == null || postIds.isEmpty())
+                ? Set.of()
+                : new HashSet<>(postLikeRepo.findLikedPostIdsByUserAndPostIds(currentUserId, postIds));
+
+        // 7. Build post feed items using the FAST mapper
+        List<FeedItemDto> postItems = orderedPosts.stream()
+                .map(post -> {
+                    int likeCount = likeCountMap.getOrDefault(post.getId(), 0);
+                    int commentCount = commentCountMap.getOrDefault(post.getId(), 0);
+                    boolean likedByCurrentUser = likedPostIds.contains(post.getId());
+
+                    PostDto postDto = postMapper.mapPostToDtoFast(
+                            post,
+                            likeCount,
+                            commentCount,
+                            likedByCurrentUser
+                    );
+
+                    return FeedItemDto.builder()
+                            .type(FeedItemType.POST)
+                            .post(postDto)
+                            .sponsored(false)
+                            .score(scorePost(post, likeCount, commentCount))
+                            .build();
+                })
+                .sorted(Comparator.comparing(FeedItemDto::getScore).reversed())
+                .toList();
+
+        // 8. Active service ads
         List<ServiceAdSubscription> activeAds =
                 serviceAdSubscriptionRepo.findByIsActiveTrueAndEndsAtAfterAndPaymentStatusOrderByCreatedAtDesc(
                                 LocalDateTime.now(),
@@ -56,18 +131,6 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                         .stream()
                         .limit(10)
                         .toList();
-
-        List<Product> candidateProducts = productRepo.findTop4ByOrderByLikesDesc();
-
-        List<FeedItemDto> postItems = posts.stream()
-                .map(post -> FeedItemDto.builder()
-                        .type(FeedItemType.POST)
-                        .post(postMapper.mapPostToDto(post, currentUserId))
-                        .sponsored(false)
-                        .score(scorePost(post))
-                        .build())
-                .sorted(Comparator.comparing(FeedItemDto::getScore).reversed())
-                .toList();
 
         List<FeedItemDto> adItems = activeAds.stream()
                 .map(ServiceAdSubscription::getServiceProfile)
@@ -82,6 +145,9 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                 .sorted(Comparator.comparing(FeedItemDto::getScore).reversed())
                 .toList();
 
+        // 9. Product recommendations
+        List<Product> candidateProducts = productRepo.findTop4ByOrderByLikesDesc();
+
         List<FeedItemDto> productItems = candidateProducts.stream()
                 .map(this::mapProductToDto)
                 .map(dto -> FeedItemDto.builder()
@@ -93,7 +159,8 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                 .sorted(Comparator.comparing(FeedItemDto::getScore).reversed())
                 .toList();
 
-        List<FeedItemDto> finalFeed = blendFeed(postItems, adItems, productItems, limit);
+        // 10. Blend everything together
+        List<FeedItemDto> finalFeed = blendFeed(postItems, adItems, productItems, safeLimit);
 
         return FeedResponseDto.builder()
                 .items(finalFeed)
@@ -102,7 +169,7 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                 .build();
     }
 
-    private double scorePost(Post post) {
+    private double scorePost(Post post, int likeCount, int commentCount) {
         double score = 0.0;
 
         if (post.getCreatedAt() != null) {
@@ -110,8 +177,8 @@ public class FeedComposerServiceImpl implements FeedComposerService {
             score += Math.max(0, 100 - hoursOld);
         }
 
-        score += post.getLikeCount() * 2.0;
-        score += post.getCommentCount() != null ? post.getCommentCount() * 3.0 : 0.0;
+        score += likeCount * 2.0;
+        score += commentCount * 3.0;
 
         return score;
     }
@@ -119,7 +186,7 @@ public class FeedComposerServiceImpl implements FeedComposerService {
     private double scoreServiceAd(ServiceProfileDto dto) {
         double score = 0.0;
 
-        score += 50.0; // sponsored baseline
+        score += 50.0;
 
         if (dto.getIsVerified() != null && dto.getIsVerified()) {
             score += 20.0;
@@ -241,8 +308,7 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                 .imageUrls(
                         product.getImages() == null
                                 ? List.of()
-                                : product.getImages()
-                                .stream()
+                                : product.getImages().stream()
                                 .map(ProductImage::getImageUrl)
                                 .collect(Collectors.toList())
                 )
@@ -255,5 +321,4 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                 .companyName(product.getUser() != null ? product.getUser().getCompanyName() : null)
                 .build();
     }
-
 }
