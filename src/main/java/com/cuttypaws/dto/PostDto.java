@@ -21,6 +21,7 @@ public class PostDto {
     private UUID ownerId;
     private String ownerName;
     private String ownerProfileImage;
+    private String ownerRole;
 
     private List<String> imageUrls;
 

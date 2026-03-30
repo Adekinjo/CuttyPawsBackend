@@ -151,11 +151,15 @@ public class PostMapper {
                 .ownerId(post.getOwner() != null ? post.getOwner().getId() : null)
                 .ownerName(post.getOwner() != null ? post.getOwner().getName() : "Unknown")
                 .ownerProfileImage(post.getOwner() != null ? post.getOwner().getProfileImageUrl() : null)
+                .ownerRole(
+                        post.getOwner() != null && post.getOwner().getUserRole() != null
+                                ? post.getOwner().getUserRole().name()
+                                : null
+                )
                 .media(media)
                 .imageUrls(imageUrls)
                 .createdAt(post.getCreatedAt() != null ? post.getCreatedAt().toString() : null)
                 .updatedAt(post.getUpdatedAt() != null ? post.getUpdatedAt().toString() : null);
-
         builder.likeCount(postLikeRepo.countByPostId(post.getId()).intValue());
         builder.commentCount(commentRepo.countByPostId(post.getId()).intValue());
 
@@ -193,6 +197,11 @@ public class PostMapper {
                 .ownerName(post.getOwner() != null ? post.getOwner().getName() : "Unknown")
                 .ownerProfileImage(post.getOwner() != null ? post.getOwner().getProfileImageUrl() : null)
                 .media(media)
+                .ownerRole(
+                        post.getOwner() != null && post.getOwner().getUserRole() != null
+                                ? post.getOwner().getUserRole().name()
+                                : null
+                )
                 .imageUrls(imageUrls)
                 .likeCount(likeCount)
                 .commentCount(commentCount)

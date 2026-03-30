@@ -66,6 +66,7 @@ public class SecurityConfig {
                                 "/reviews/**",
                                 "/category/get-all",
                                 "/sub-category/**",
+                                "/feed/**",
                                 "/product/**",
                                 "/search/**",
                                 "/newsletter/**",
