@@ -103,6 +103,7 @@ public class SecurityConfig {
                                 "/user/update",
                                 "/orders/**",
                                 "/payment/**",
+                                "/service-booking-reports/**",
                                 "/order/create",
                                 "/auth/update-user-profile"
                         ).authenticated()

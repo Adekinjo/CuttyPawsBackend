@@ -61,4 +61,7 @@ public class UserResponse {
 
     private ServiceBookingDto serviceBooking;
     private List<ServiceBookingDto> serviceBookings;
+
+    private ServiceBookingReportDto serviceBookingReport;
+    private List<ServiceBookingReportDto> serviceBookingReports;
 }
