@@ -1,6 +1,7 @@
 package com.cuttypaws.entity;
 
 import com.cuttypaws.enums.UserRole;
+import jakarta.annotation.Resource;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;

@@ -289,50 +289,37 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse requestPasswordReset(String email) {
-        log.info("Password reset request for email: {}", email);
+        log.info("Password reset request received");
 
         try {
-            // Validate email
-            if (!inputSanitizer.isValidEmail(email)) {
+            String normalizedEmail = inputSanitizer.sanitize(email.trim().toLowerCase());
+
+            if (!inputSanitizer.isValidEmail(normalizedEmail)) {
                 throw new RuntimeException("Invalid email format");
             }
 
-            // Rate limiting
-            if (rateLimitService.isPasswordResetLimited(email)) {
+            if (rateLimitService.isPasswordResetLimited(normalizedEmail)) {
                 throw new RuntimeException("Too many password reset requests. Please wait 15 minutes.");
             }
 
-            // Find user
-            User user = userRepo.findByEmail(email)
-                    .orElseThrow(() -> new NotFoundException("User not found"));
+            // Record attempt no matter what
+            rateLimitService.recordAttempt(normalizedEmail, "PASSWORD_RESET");
 
-            // Clean old tokens
-            passwordResetTokenRepo.deleteByUser(user);
+            userRepo.findByEmail(normalizedEmail).ifPresent(user -> {
+                passwordResetTokenRepo.deleteByUser(user);
 
-            // Create new token
-            PasswordResetToken resetToken = createPasswordResetToken(user);
-            passwordResetTokenRepo.save(resetToken);
+                PasswordResetToken resetToken = createPasswordResetToken(user);
+                passwordResetTokenRepo.save(resetToken);
 
-            // Send reset email
-            sendPasswordResetEmail(user, resetToken.getToken());
+                sendPasswordResetEmail(user, resetToken.getToken());
+            });
 
-            // Record attempt
-            rateLimitService.recordAttempt(email, "PASSWORD_RESET");
-
-            log.info("Password reset email sent to: {}", email);
-            return UserResponse.builder()
-                    .status(200)
-                    .message("Password reset link sent to your email")
-                    .timeStamp(LocalDateTime.now())
-                    .build();
-
-        } catch (NotFoundException e) {
-            // Don't reveal that user doesn't exist for security
-            log.info("Password reset requested for non-existent email: {}", email);
             return UserResponse.builder()
                     .status(200)
                     .message("If the email exists, a reset link has been sent")
+                    .timeStamp(LocalDateTime.now())
                     .build();
+
         } catch (Exception e) {
             log.error("Password reset request failed for {}: {}", email, e.getMessage());
             throw new RuntimeException("Failed to process password reset request");
