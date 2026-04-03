@@ -2,11 +2,13 @@ package com.cuttypaws.feed.service.impl;
 
 import com.cuttypaws.dto.PostDto;
 import com.cuttypaws.dto.ProductDto;
+import com.cuttypaws.dto.ServiceMediaDto;
 import com.cuttypaws.dto.ServiceProfileDto;
 import com.cuttypaws.entity.Post;
 import com.cuttypaws.entity.Product;
 import com.cuttypaws.entity.ProductImage;
 import com.cuttypaws.entity.ServiceAdSubscription;
+import com.cuttypaws.entity.ServiceMedia;
 import com.cuttypaws.entity.ServiceProfile;
 import com.cuttypaws.enums.PaymentStatus;
 import com.cuttypaws.feed.dto.FeedItemDto;
@@ -19,29 +21,27 @@ import com.cuttypaws.repository.PostLikeRepo;
 import com.cuttypaws.repository.PostRepo;
 import com.cuttypaws.repository.ProductRepo;
 import com.cuttypaws.repository.ServiceAdSubscriptionRepo;
+import com.cuttypaws.repository.ServiceMediaRepo;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FeedComposerServiceImpl implements FeedComposerService {
 
     private final PostRepo postRepo;
     private final ProductRepo productRepo;
     private final ServiceAdSubscriptionRepo serviceAdSubscriptionRepo;
+    private final ServiceMediaRepo serviceMediaRepo;
     private final PostMapper postMapper;
     private final PostLikeRepo postLikeRepo;
     private final CommentRepo commentRepo;
@@ -49,9 +49,7 @@ public class FeedComposerServiceImpl implements FeedComposerService {
     @Override
     @Cacheable(
             value = "mixed-feed",
-            key = "T(String).valueOf(#currentUserId).concat(':').concat(T(String).valueOf(#cursorCreatedAt)).concat(':').concat(T(String).valueOf(#cursorId)).concat(':').concat(T(String).valueOf(#limit))",
-            condition = "@cacheToggleService.isEnabled()",
-            unless = "#result == null || #result.items == null || #result.items.isEmpty()"
+            condition = "@cacheToggleService.isEnabled()"
     )
     public FeedResponseDto getMixedFeed(
             UUID currentUserId,
@@ -62,13 +60,10 @@ public class FeedComposerServiceImpl implements FeedComposerService {
         int safeLimit = Math.min(Math.max(limit, 1), 12);
         int fetchSize = safeLimit + 1;
 
-        // 1. Get post ids with cursor pagination
-        List<Long> postIds;
-        if (cursorCreatedAt == null || cursorId == null) {
-            postIds = postRepo.fetchFeedIdsFirst(PageRequest.of(0, fetchSize));
-        } else {
-            postIds = postRepo.fetchFeedIdsAfter(cursorCreatedAt, cursorId, PageRequest.of(0, fetchSize));
-        }
+        // 1) fetch post ids with cursor
+        List<Long> postIds = (cursorCreatedAt == null || cursorId == null)
+                ? postRepo.fetchFeedIdsFirst(PageRequest.of(0, fetchSize))
+                : postRepo.fetchFeedIdsAfter(cursorCreatedAt, cursorId, PageRequest.of(0, fetchSize));
 
         if (postIds == null || postIds.isEmpty()) {
             return FeedResponseDto.builder()
@@ -81,19 +76,17 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                     .build();
         }
 
-        // 2. Determine hasMore and trim extra row
         boolean hasMore = postIds.size() > safeLimit;
         if (hasMore) {
             postIds = postIds.subList(0, safeLimit);
         }
 
-        // 3. Load full posts with owner + media
+        // 2) hydrate posts
         List<Post> posts = postRepo.findAllWithOwnerAndMediaByIdIn(postIds);
 
         Map<Long, Post> postMap = posts.stream()
                 .collect(Collectors.toMap(Post::getId, Function.identity(), (a, b) -> a));
 
-        // preserve DB id order
         List<Post> orderedPosts = postIds.stream()
                 .map(postMap::get)
                 .filter(Objects::nonNull)
@@ -112,29 +105,22 @@ public class FeedComposerServiceImpl implements FeedComposerService {
 
         List<Long> orderedPostIds = orderedPosts.stream().map(Post::getId).toList();
 
-        // 4. Batch like counts
         Map<Long, Integer> likeCountMap = postLikeRepo.countLikesByPostIds(orderedPostIds).stream()
                 .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> ((Long) row[1]).intValue()
+                        row -> ((Number) row[0]).longValue(),
+                        row -> ((Number) row[1]).intValue()
                 ));
 
-        // 5. Batch comment counts
         Map<Long, Integer> commentCountMap = commentRepo.countCommentsByPostIds(orderedPostIds).stream()
                 .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> ((Long) row[1]).intValue()
+                        row -> ((Number) row[0]).longValue(),
+                        row -> ((Number) row[1]).intValue()
                 ));
 
-        // 6. Batch liked-post lookup for current user
         Set<Long> likedPostIds = currentUserId == null
                 ? Set.of()
                 : new HashSet<>(postLikeRepo.findLikedPostIdsByUserAndPostIds(currentUserId, orderedPostIds));
 
-        // 7. Build post items
-        // NOTE:
-        // This keeps posts in cursor/date order.
-        // If you sort by score again here, you lose strict DESC order.
         List<FeedItemDto> postItems = orderedPosts.stream()
                 .map(post -> {
                     int likeCount = likeCountMap.getOrDefault(post.getId(), 0);
@@ -157,17 +143,14 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                 })
                 .toList();
 
-        // 8. Ads
-        List<ServiceAdSubscription> activeAds =
-                serviceAdSubscriptionRepo.findByIsActiveTrueAndEndsAtAfterAndPaymentStatusOrderByCreatedAtDesc(
-                                LocalDateTime.now(),
-                                PaymentStatus.PAID
-                        )
-                        .stream()
-                        .limit(2)
-                        .toList();
+        // 3) build service ad items
+        List<ServiceAdSubscription> adSubscriptions = serviceAdSubscriptionRepo.findFeedAdCandidates(
+                LocalDateTime.now(),
+                PaymentStatus.PAID,
+                PageRequest.of(0, 6)
+        );
 
-        List<FeedItemDto> adItems = activeAds.stream()
+        List<FeedItemDto> adItems = adSubscriptions.stream()
                 .map(ServiceAdSubscription::getServiceProfile)
                 .filter(Objects::nonNull)
                 .map(this::mapServiceProfileToDto)
@@ -179,8 +162,8 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                         .build())
                 .toList();
 
-        // 9. Products
-        List<Product> candidateProducts = productRepo.findTop4ByOrderByLikesDesc();
+        // 4) build product items
+        List<Product> candidateProducts = productRepo.findFeedProductCandidates(PageRequest.of(0, 8));
 
         List<FeedItemDto> productItems = candidateProducts.stream()
                 .map(this::mapProductToDto)
@@ -192,10 +175,19 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                         .build())
                 .toList();
 
-        // 10. Blend feed
-        List<FeedItemDto> finalFeed = blendFeed(postItems, adItems, productItems, safeLimit);
 
-        // 11. Next cursor from last actual post in cursor sequence
+        // 5) blend
+        List<FeedItemDto> finalFeed = blendFeed(postItems, adItems, productItems, safeLimit);
+        System.out.println("finalFeed types = " + finalFeed.stream()
+                .map(item -> item.getType().name())
+                .toList());
+        log.info("postItems size = {}", postItems.size());
+        log.info("adItems size = {}", adItems.size());
+        log.info("productItems size = {}", productItems.size());
+        log.info("finalFeed types = {}", finalFeed.stream()
+                .map(item -> item.getType().name())
+                .toList());
+
         Post lastPost = orderedPosts.get(orderedPosts.size() - 1);
 
         return FeedResponseDto.builder()
@@ -225,7 +217,7 @@ public class FeedComposerServiceImpl implements FeedComposerService {
     private double scoreServiceAd(ServiceProfileDto dto) {
         double score = 50.0;
 
-        if (dto.getIsVerified() != null && dto.getIsVerified()) {
+        if (Boolean.TRUE.equals(dto.getIsVerified())) {
             score += 20.0;
         }
 
@@ -270,21 +262,23 @@ public class FeedComposerServiceImpl implements FeedComposerService {
         int adIndex = 0;
         int productIndex = 0;
 
-        while (result.size() < limit &&
-                (postIndex < posts.size() || adIndex < ads.size() || productIndex < products.size())) {
-
+        while (result.size() < limit && postIndex < posts.size()) {
+            // 4 posts
             for (int i = 0; i < 4 && result.size() < limit && postIndex < posts.size(); i++) {
                 result.add(posts.get(postIndex++));
             }
 
+            // 1 service ad
             if (result.size() < limit && adIndex < ads.size()) {
                 result.add(ads.get(adIndex++));
             }
 
+            // 2 posts
             for (int i = 0; i < 2 && result.size() < limit && postIndex < posts.size(); i++) {
                 result.add(posts.get(postIndex++));
             }
 
+            // 1 product recommendation
             if (result.size() < limit && productIndex < products.size()) {
                 result.add(products.get(productIndex++));
             }
@@ -294,6 +288,28 @@ public class FeedComposerServiceImpl implements FeedComposerService {
     }
 
     private ServiceProfileDto mapServiceProfileToDto(ServiceProfile serviceProfile) {
+        List<ServiceMedia> mediaEntities = serviceMediaRepo.findByServiceProfileIdOrderByDisplayOrderAsc(serviceProfile.getId());
+
+        List<ServiceMediaDto> media = mediaEntities.stream()
+                .map(m -> ServiceMediaDto.builder()
+                        .id(m.getId())
+                        .mediaType(m.getMediaType().name())
+                        .mediaUrl(m.getMediaUrl())
+                        .isCover(Boolean.TRUE.equals(m.getIsCover()))
+                        .build())
+                .toList();
+
+        String coverImageUrl = mediaEntities.stream()
+                .filter(m -> Boolean.TRUE.equals(m.getIsCover()))
+                .map(ServiceMedia::getMediaUrl)
+                .findFirst()
+                .orElseGet(() ->
+                        mediaEntities.stream()
+                                .map(ServiceMedia::getMediaUrl)
+                                .findFirst()
+                                .orElse(null)
+                );
+
         return ServiceProfileDto.builder()
                 .id(serviceProfile.getId())
                 .userId(serviceProfile.getUser() != null ? serviceProfile.getUser().getId() : null)
@@ -327,6 +343,8 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                 .approvedAt(serviceProfile.getApprovedAt())
                 .sponsored(true)
                 .sponsoredPlanType("ACTIVE_AD")
+                .media(media)
+                .coverImageUrl(coverImageUrl)
                 .build();
     }
 

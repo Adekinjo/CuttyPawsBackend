@@ -4,6 +4,8 @@ import com.cuttypaws.entity.ServiceAdSubscription;
 import com.cuttypaws.enums.PaymentStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,4 +39,18 @@ public interface ServiceAdSubscriptionRepo extends JpaRepository<ServiceAdSubscr
     Optional<ServiceAdSubscription> findByPaymentReference(String paymentReference);
 
     Optional<ServiceAdSubscription> findByCheckoutSessionId(String checkoutSessionId);
+
+    @Query("""
+    SELECT s
+    FROM ServiceAdSubscription s
+    WHERE s.isActive = true
+      AND s.endsAt > :now
+      AND s.paymentStatus = :paymentStatus
+    ORDER BY s.createdAt DESC
+""")
+    List<ServiceAdSubscription> findFeedAdCandidates(
+            @Param("now") LocalDateTime now,
+            @Param("paymentStatus") PaymentStatus paymentStatus,
+            org.springframework.data.domain.Pageable pageable
+    );
 }

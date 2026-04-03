@@ -35,11 +35,22 @@ public class CacheMonitorService {
     }
 
     private void initializeStatistics() {
-        // Initialize stats for all configured caches
         Arrays.asList(
-                "products", "productById", "allCategories", "categoryById",
+                "mixed-feed",
+
+                "products", "productById",
+                "allCategories", "categoryById",
                 "allSubCategories", "subCategoryById", "subCategorySearch",
-                "subCategoriesByCategory", "categoryWithSubCategories", "categorySearch"
+                "subCategoriesByCategory", "categoryWithSubCategories", "categorySearch",
+
+                "postById", "postsAll", "postsByUser", "userLikedPosts",
+
+                "commentById", "commentsByPost",
+
+                "postReactions", "userPostReaction",
+                "commentReactions", "userCommentReaction",
+
+                "petById", "petsAll", "petsByUser"
         ).forEach(cacheName -> {
             hitCount.put(cacheName, new AtomicLong(0));
             missCount.put(cacheName, new AtomicLong(0));
@@ -60,12 +71,6 @@ public class CacheMonitorService {
         lastAccess.put(cacheName, LocalDateTime.now());
         log.debug("❌ Cache MISS: {}", cacheName);
     }
-
-//    public void recordCacheUpdate(String cacheName) {
-//        lastUpdate.put(cacheName, LocalDateTime.now());
-//        lastAccess.put(cacheName, LocalDateTime.now());
-//        log.debug("🔄 Cache UPDATED: {}", cacheName);
-//    }
 
     public CacheStatistics getCacheStatistics(String cacheName) {
         long hits = hitCount.getOrDefault(cacheName, new AtomicLong(0)).get();

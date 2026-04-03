@@ -6,6 +6,7 @@ import com.cuttypaws.feed.service.interf.FeedComposerService;
 import com.cuttypaws.feed.service.interf.VideoFeedService;
 import com.cuttypaws.security.CurrentUser;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +16,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/feed")
 @RequiredArgsConstructor
+@Slf4j
 public class FeedController {
 
     private final FeedComposerService feedComposerService;

@@ -46,7 +46,7 @@ public class ProductServiceImpl implements ProductService {
 
 
     @Override
-    @CacheEvict(value = {
+    @CacheEvict(value = { "mixed-feed",
             "products", "productById",
             "allCategories", "categoryById", "categoryWithSubCategories",
             "allSubCategories", "subCategoriesByCategory"
@@ -123,7 +123,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @CacheEvict(value = {
+    @CacheEvict(value = { "mixed-feed",
             "products", "productById",
             "allCategories", "categoryById", "categoryWithSubCategories",
             "allSubCategories", "subCategoriesByCategory"
@@ -226,7 +226,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @CacheEvict(value = {
+    @CacheEvict(value = { "mixed-feed",
             "products", "productById",
             "allCategories", "categoryById", "categoryWithSubCategories",
             "allSubCategories", "subCategoriesByCategory"
@@ -582,6 +582,12 @@ public class ProductServiceImpl implements ProductService {
 
 
     @Override
+    @CacheEvict(value = {
+            "mixed-feed",
+            "products", "productById",
+            "allCategories", "categoryById", "categoryWithSubCategories",
+            "allSubCategories", "subCategoriesByCategory"
+    }, allEntries = true)
     public ProductResponse createProductForCompany(UUID companyId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock) {
         User company = userRepo.findById(companyId)
                 .orElseThrow(() -> new NotFoundException("Company not found"));
@@ -644,6 +650,12 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @CacheEvict(value = {
+            "mixed-feed",
+            "products", "productById",
+            "allCategories", "categoryById", "categoryWithSubCategories",
+            "allSubCategories", "subCategoriesByCategory"
+    }, allEntries = true)
     public ProductResponse updateProductForCompany(Long productId, UUID companyId, Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
@@ -758,6 +770,12 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @CacheEvict(value = {
+            "mixed-feed",
+            "products", "productById",
+            "allCategories", "categoryById", "categoryWithSubCategories",
+            "allSubCategories", "subCategoriesByCategory"
+    }, allEntries = true)
     public ProductResponse deleteProductForCompany(Long productId, UUID companyId) {
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new NotFoundException("Product not found"));

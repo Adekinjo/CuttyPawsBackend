@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @EnableScheduling
 @SpringBootApplication
+@EnableCaching
 public class CuttyPawsBackendApplication {
 
     public static void main(String[] args) {

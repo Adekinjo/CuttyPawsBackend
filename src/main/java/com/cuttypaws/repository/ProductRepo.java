@@ -90,4 +90,13 @@ public interface ProductRepo extends JpaRepository<Product, Long> {
 """)
     List<Product> searchBroadProductTerm(@Param("term") String term);
 
+    @Query("""
+    SELECT p
+    FROM Product p
+    WHERE p.stock IS NOT NULL
+      AND p.stock > 0
+    ORDER BY COALESCE(p.likes, 0) DESC, COALESCE(p.viewCount, 0) DESC, p.id DESC
+""")
+    List<Product> findFeedProductCandidates(org.springframework.data.domain.Pageable pageable);
+
 }

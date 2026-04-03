@@ -35,12 +35,13 @@ public class VideoFeedServiceImpl implements VideoFeedService {
             int limit
     ) {
         int safeLimit = Math.min(Math.max(limit, 1), 10);
+        int fetchSize = safeLimit + 1;
 
         List<Long> ids = (cursorCreatedAt == null || cursorId == null)
-                ? postRepo.fetchVideoFeedIdsFirst(PageRequest.of(0, safeLimit))
-                : postRepo.fetchVideoFeedIdsAfter(cursorCreatedAt, cursorId, PageRequest.of(0, safeLimit));
+                ? postRepo.fetchVideoFeedIdsFirst(PageRequest.of(0, fetchSize))
+                : postRepo.fetchVideoFeedIdsAfter(cursorCreatedAt, cursorId, PageRequest.of(0, fetchSize));
 
-        if (ids.isEmpty()) {
+        if (ids == null || ids.isEmpty()) {
             return VideoFeedPageResponse.builder()
                     .items(List.of())
                     .nextCursor(null)
@@ -48,18 +49,23 @@ public class VideoFeedServiceImpl implements VideoFeedService {
                     .build();
         }
 
+        boolean hasMore = ids.size() > safeLimit;
+        if (hasMore) {
+            ids = ids.subList(0, safeLimit);
+        }
+
         List<Post> posts = postRepo.findAllWithOwnerAndMediaByIdIn(ids);
 
         Map<Long, Post> postMap = posts.stream()
-                .collect(Collectors.toMap(Post::getId, Function.identity()));
+                .collect(Collectors.toMap(Post::getId, Function.identity(), (a, b) -> a));
 
         List<Post> orderedPosts = ids.stream()
                 .map(postMap::get)
                 .filter(Objects::nonNull)
                 .toList();
 
-        Map<Long, Integer> likeCountMap = toCountMap(postLikeRepo.countByPostIds(ids));
-        Map<Long, Integer> commentCountMap = toCountMap(commentRepo.countByPostIds(ids));
+        Map<Long, Integer> likeCountMap = toCountMap(postLikeRepo.countLikesByPostIds(ids));
+        Map<Long, Integer> commentCountMap = toCountMap(commentRepo.countCommentsByPostIds(ids));
 
         Set<Long> likedPostIds = currentUserId == null
                 ? Set.of()
@@ -84,7 +90,7 @@ public class VideoFeedServiceImpl implements VideoFeedService {
         return VideoFeedPageResponse.builder()
                 .items(items)
                 .nextCursor(nextCursor)
-                .hasMore(items.size() == safeLimit)
+                .hasMore(hasMore)
                 .build();
     }
 

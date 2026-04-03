@@ -3,8 +3,10 @@ package com.cuttypaws.dto;
 import com.cuttypaws.enums.BookingStatus;
 import com.cuttypaws.enums.PaymentStatus;
 import com.cuttypaws.enums.ServiceType;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -12,6 +14,8 @@ import java.util.UUID;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ServiceBookingDto {
     private UUID id;
 

@@ -44,6 +44,13 @@ public class CacheController {
         return ResponseEntity.ok(withTimestamp(result));
     }
 
+    @PostMapping("/clear-mixed-feed")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<Map<String, Object>> clearMixedFeed() {
+        Map<String, Object> result = cacheAdminService.clearCache("mixed-feed");
+        return ResponseEntity.ok(withTimestamp(result));
+    }
+
     @PostMapping("/clear-all")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<Map<String, Object>> clearAllCaches() {
