@@ -254,9 +254,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(readOnly = true)
     @Cacheable(
             value = "commentsByPost",
-            key = "T(String).valueOf(#postId).concat(':').concat(#page).concat(':').concat(#size).concat(':').concat(T(String).valueOf(#currentUserId))",
-            condition = "@cacheToggleService.isEnabled()",
-            unless = "#result == null || #result.commentList == null"
+            condition = "@cacheToggleService.isEnabled()"
     )
     public CommentResponse getCommentsByPostId(Long postId, UUID currentUserId, int page, int size) {
         try {
