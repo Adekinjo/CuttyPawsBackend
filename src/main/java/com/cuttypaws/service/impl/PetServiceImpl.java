@@ -240,9 +240,7 @@ public class PetServiceImpl implements PetService {
     @Override
     @Cacheable(
             value = "petsByUser",
-            key = "#userId",
-            condition = "@cacheToggleService.isEnabled()",
-            unless = "#result == null || #result.petList == null"
+            condition = "@cacheToggleService.isEnabled()"
     )
     @Transactional(readOnly = true)
     public PetResponse getMyPets(UUID userId) {
