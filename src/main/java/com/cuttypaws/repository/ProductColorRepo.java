@@ -10,9 +10,6 @@ import java.util.Optional;
 @Repository
 public interface ProductColorRepo extends JpaRepository<ProductColor, Long> {
 
-    // Find all colors for a specific product
-    List<ProductColor> findByProductId(Long productId);
-
     // Find a specific color by ID
     Optional<ProductColor> findById(Long id);
 }

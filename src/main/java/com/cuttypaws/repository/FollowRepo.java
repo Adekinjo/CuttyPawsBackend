@@ -45,9 +45,6 @@ public interface FollowRepo extends JpaRepository<Follow, Long> {
     @Query("SELECT f FROM Follow f JOIN FETCH f.following WHERE f.follower.id = :userId")
     Page<Follow> findFollowingByUserId(@Param("userId") UUID userId, Pageable pageable);
 
-    // Get all followers (without pagination)
-    @Query("SELECT f FROM Follow f JOIN FETCH f.follower WHERE f.following.id = :userId")
-    List<Follow> findAllFollowersByUserId(@Param("userId") UUID userId);
 
     // Get all following (without pagination)
     @Query("SELECT f FROM Follow f JOIN FETCH f.following WHERE f.follower.id = :userId")
@@ -58,10 +55,6 @@ public interface FollowRepo extends JpaRepository<Follow, Long> {
     @Query("DELETE FROM Follow f WHERE f.follower.id = :followerId AND f.following.id = :followingId")
     void deleteByFollowerIdAndFollowingId(@Param("followerId") UUID followerId,
                                           @Param("followingId") UUID followingId);
-
-    // Find muted follows
-    @Query("SELECT f FROM Follow f WHERE f.follower.id = :followerId AND f.isMuted = true")
-    List<Follow> findMutedUsers(@Param("followerId") UUID followerId);
 
     // ✅ FIXED: Get only the IDs of followers
     @Query("SELECT f.follower.id FROM Follow f WHERE f.following.id = :userId")

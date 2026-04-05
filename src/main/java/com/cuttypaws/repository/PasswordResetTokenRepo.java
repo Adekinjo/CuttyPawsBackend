@@ -15,8 +15,6 @@ public interface PasswordResetTokenRepo extends JpaRepository<PasswordResetToken
 
     Optional<PasswordResetToken> findByToken(String token);
 
-    Optional<PasswordResetToken> findByUser(User user);
-
     @Modifying
     @Query("DELETE FROM PasswordResetToken t WHERE t.expiryDate < :now OR (t.used = true AND t.usedAt < :cutoffTime)")
     void deleteExpiredOrOldUsedTokens(@Param("now") LocalDateTime now,
@@ -25,6 +23,4 @@ public interface PasswordResetTokenRepo extends JpaRepository<PasswordResetToken
     @Modifying
     @Query("DELETE FROM PasswordResetToken t WHERE t.user = :user")
     void deleteByUser(@Param("user") User user);
-
-    List<PasswordResetToken> findByUsedTrueAndUsedAtBefore(LocalDateTime cutoffTime);
 }

@@ -17,19 +17,8 @@ import java.util.UUID;
 
 public interface ProductRepo extends JpaRepository<Product, Long> {
 
-    @Query("SELECT p FROM Product p " +
-            "LEFT JOIN FETCH p.images " +
-            "LEFT JOIN FETCH p.sizes " +
-            "LEFT JOIN FETCH p.colors " +
-            "LEFT JOIN FETCH p.category " +
-            "LEFT JOIN FETCH p.subCategory " +
-            "WHERE p.id = :id")
-    Optional<Product> findByIdWithAssociations(@Param("id") Long id);
-
-    List<Product> findByCategoryId(Long categoryId);
 
     List<Product> findByNameContainingOrDescriptionContaining(String name, String description);
-    List<Product> findByNameContaining(String name);
 
     @Query("SELECT p FROM Product p WHERE " +
             "(:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +

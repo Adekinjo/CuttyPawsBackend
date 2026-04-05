@@ -14,13 +14,6 @@ public interface NewsletterSubscriberRepo extends JpaRepository<NewsletterSubscr
 
      Optional<NewsletterSubscriber> findByEmail(String email);
 
-     @Modifying
-     @Query("UPDATE NewsletterSubscriber ns SET ns.isActive = true WHERE ns.email = :email")
-     void resubscribeByEmail(String email);
-
-     @Modifying
-     @Query("UPDATE NewsletterSubscriber ns SET ns.isActive = false WHERE ns.email = :email")
-     void unsubscribeByEmail(String email);
 
      List<NewsletterSubscriber> findByIsActiveTrue();
 

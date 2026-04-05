@@ -16,9 +16,7 @@ public interface PostLikeRepo extends JpaRepository<PostLike, Long> {
     Optional<PostLike> findByUserIdAndPostId(UUID userId, Long postId);
     boolean existsByUserIdAndPostId(UUID userId, Long postId);
     Long countByPostId(Long postId);
-    void deleteByUserIdAndPostId(UUID userId, Long postId);
     List<PostLike> findByUserId(UUID userId);
-    List<PostLike> findByPostId(Long postId);
 
     @Query("SELECT COUNT(pl) FROM PostLike pl WHERE pl.post.owner.id = :userId")
     Long countLikesByUserId(@Param("userId") UUID userId);
@@ -27,9 +25,6 @@ public interface PostLikeRepo extends JpaRepository<PostLike, Long> {
     @Query("SELECT pl.reactionType, COUNT(pl) FROM PostLike pl WHERE pl.post.id = :postId GROUP BY pl.reactionType")
     List<Object[]> getReactionCountsByPostId(@Param("postId") Long postId);
 
-    @Query("SELECT COUNT(pl) FROM PostLike pl WHERE pl.post.id = :postId AND pl.reactionType = :reactionType")
-    Long countByPostIdAndReactionType(@Param("postId") Long postId, @Param("reactionType") PostLike.ReactionType reactionType);
-
     @Query("""
   SELECT pl.post.id, COUNT(pl)
   FROM PostLike pl
@@ -37,14 +32,6 @@ public interface PostLikeRepo extends JpaRepository<PostLike, Long> {
   GROUP BY pl.post.id
 """)
     List<Object[]> countLikesByPostIds(@Param("postIds") List<Long> postIds);
-
-    @Query("""
-        SELECT pl.post.id, COUNT(pl)
-        FROM PostLike pl
-        WHERE pl.post.id IN :postIds
-        GROUP BY pl.post.id
-    """)
-    List<Object[]> countByPostIds(@Param("postIds") List<Long> postIds);
 
     @Query("""
         SELECT pl.post.id

@@ -9,10 +9,6 @@ import java.util.Optional;
 
 @Repository
 public interface ProductSizeRepo extends JpaRepository<ProductSize, Long> {
-
-    // Find all sizes for a specific product
-    List<ProductSize> findByProductId(Long productId);
-
     // Find a specific size by ID
     Optional<ProductSize> findById(Long id);
 }

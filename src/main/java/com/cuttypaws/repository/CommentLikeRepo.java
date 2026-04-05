@@ -14,15 +14,9 @@ import java.util.UUID;
 public interface CommentLikeRepo extends JpaRepository<CommentLike, Long> {
 
     Optional<CommentLike> findByUserIdAndCommentId(UUID userId, Long commentId);
-    boolean existsByUserIdAndCommentId(UUID userId, Long commentId);
-    Long countByCommentId(Long commentId);
-    void deleteByUserIdAndCommentId(UUID userId, Long commentId);
     List<CommentLike> findByUserId(UUID userId);
-    List<CommentLike> findByCommentId(Long commentId);
 
     @Query("SELECT cl.reactionType, COUNT(cl) FROM CommentLike cl WHERE cl.comment.id = :commentId GROUP BY cl.reactionType")
     List<Object[]> getReactionCountsByCommentId(@Param("commentId") Long commentId);
 
-    @Query("SELECT COUNT(cl) FROM CommentLike cl WHERE cl.comment.id = :commentId AND cl.reactionType = :reactionType")
-    Long countByCommentIdAndReactionType(@Param("commentId") Long commentId, @Param("reactionType") CommentLike.ReactionType reactionType);
 }

@@ -253,14 +253,6 @@ public interface PostRepo extends JpaRepository<Post, Long> {
        """)
     List<Post> findByOwnerIdWithLikesAndMedia(@Param("userId") UUID userId);
 
-    // FAST mixed feed / general feed step 1
-    @Query("""
-        SELECT p.id
-        FROM Post p
-        ORDER BY p.createdAt DESC, p.id DESC
-    """)
-    List<Long> fetchRecentPostIds(Pageable pageable);
-
     // General feed cursor first page
     @Query("""
         SELECT p.id

@@ -14,24 +14,11 @@ import java.util.UUID;
 
 public interface ServiceAdSubscriptionRepo extends JpaRepository<ServiceAdSubscription, UUID> {
 
-    List<ServiceAdSubscription> findByServiceProfileIdOrderByCreatedAtDesc(UUID serviceProfileId);
-
     List<ServiceAdSubscription> findByServiceProfileUserIdOrderByCreatedAtDesc(UUID userId);
-
-    List<ServiceAdSubscription> findByPaymentStatus(PaymentStatus paymentStatus);
 
     Optional<ServiceAdSubscription> findFirstByServiceProfileIdAndIsActiveTrueAndEndsAtAfterOrderByCreatedAtDesc(
             UUID serviceProfileId,
             LocalDateTime now
-    );
-
-    @EntityGraph(attributePaths = {
-            "serviceProfile",
-            "serviceProfile.user"
-    })
-    List<ServiceAdSubscription> findByIsActiveTrueAndEndsAtAfterAndPaymentStatusOrderByCreatedAtDesc(
-            LocalDateTime now,
-            PaymentStatus paymentStatus
     );
 
     List<ServiceAdSubscription> findByIsActiveTrueAndEndsAtBefore(LocalDateTime now);

@@ -15,7 +15,4 @@ public interface DealRepo extends JpaRepository<Deal, Long> {
     List<Deal> findByActiveTrueAndEndDateAfter(LocalDateTime now);
     Optional<Deal> findByProductId(Long productId);
 
-    @Query("SELECT d FROM Deal d WHERE d.active = true AND " +
-            "d.startDate <= :now AND d.endDate >= :now")
-    List<Deal> findActiveDeals(LocalDateTime now);
 }
