@@ -88,4 +88,74 @@ public interface ProductRepo extends JpaRepository<Product, Long> {
 """)
     List<Product> findFeedProductCandidates(org.springframework.data.domain.Pageable pageable);
 
+    @EntityGraph(attributePaths = {"category", "subCategory", "user"})
+        @Query("""
+    SELECT p
+    FROM Product p
+    WHERE p.id = :productId
+    """)
+    Optional<Product> findProductDetailsById(@Param("productId") Long productId);
+
+    @Query("""
+    SELECT DISTINCT p
+    FROM Product p
+    LEFT JOIN FETCH p.images
+    WHERE p.id = :productId
+    """)
+    Optional<Product> findProductWithImages(@Param("productId") Long productId);
+
+    @Query("""
+    SELECT DISTINCT p
+    FROM Product p
+    LEFT JOIN FETCH p.colors
+    WHERE p.id = :productId
+    """)
+    Optional<Product> findProductWithColors(@Param("productId") Long productId);
+
+    @Query("""
+    SELECT DISTINCT p
+    FROM Product p
+    LEFT JOIN FETCH p.sizes
+    WHERE p.id = :productId
+    """)
+    Optional<Product> findProductWithSizes(@Param("productId") Long productId);
+
+    @EntityGraph(attributePaths = {"images", "category", "subCategory", "user"})
+    @Query("""
+    SELECT p
+    FROM Product p
+    WHERE p.subCategory.id = :subCategoryId
+    AND p.id <> :productId
+    AND p.stock > 0
+    ORDER BY COALESCE(p.likes,0) DESC, COALESCE(p.viewCount,0) DESC
+    """)
+    List<Product> findRelatedProductsBySubCategory(
+            Long subCategoryId,
+            Long productId,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"images", "category", "subCategory", "user"})
+    @Query("""
+    SELECT p
+    FROM Product p
+    WHERE p.category.id = :categoryId
+    AND p.id <> :productId
+    AND p.stock > 0
+    ORDER BY COALESCE(p.likes,0) DESC, COALESCE(p.viewCount,0) DESC
+    """)
+    List<Product> findOtherRelatedProductsByCategory(
+            Long categoryId,
+            Long productId,
+            Pageable pageable
+    );
+
+    @EntityGraph(attributePaths = {"images", "category", "subCategory", "user"})
+    @Query("""
+    SELECT p
+    FROM Product p
+    ORDER BY p.id DESC
+    """)
+    List<Product> findProductCards(Pageable pageable);
+
 }

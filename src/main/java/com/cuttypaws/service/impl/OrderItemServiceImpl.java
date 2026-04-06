@@ -257,6 +257,7 @@ public class OrderItemServiceImpl implements OrderItemService {
                     });
 
             orderItem.setOrderStatus(OrderStatus.valueOf(status.toUpperCase()));
+            orderItem.setUpdatedAt(LocalDateTime.now());
             orderItemRepo.save(orderItem);
             log.info("Order item status updated successfully for ID: {}", orderItemId);
 

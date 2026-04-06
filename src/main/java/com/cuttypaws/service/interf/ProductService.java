@@ -4,6 +4,7 @@ import com.cuttypaws.dto.*;
 
 import com.cuttypaws.entity.Product;
 import com.cuttypaws.response.ProductResponse;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
@@ -21,7 +22,11 @@ public interface ProductService {
 
     ProductResponse getProductById(Long productId);
 
-    ProductResponse getAllProduct();
+    //ProductResponse getAllProduct();
+
+    ProductResponse getProductDetails(Long productId);
+
+    ProductResponse getAllProduct(int page, int size);
 
     List<ProductDto> getRelatedProducts(String query);
 

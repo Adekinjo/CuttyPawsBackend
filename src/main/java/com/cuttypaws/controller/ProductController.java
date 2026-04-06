@@ -111,10 +111,18 @@ public class ProductController {
         return ResponseEntity.ok(productService.getProductById(productId));
     }
 
+    @GetMapping("/details/{productId}")
+    public ResponseEntity<ProductResponse> getProductDetails(@PathVariable Long productId) {
+        return ResponseEntity.ok(productService.getProductDetails(productId));
+    }
+
 
     @GetMapping("/get-all")
-    public ResponseEntity<ProductResponse> getAllProducts() {
-        return ResponseEntity.ok(productService.getAllProduct());
+    public ResponseEntity<ProductResponse> getAllProducts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size
+    ) {
+        return ResponseEntity.ok(productService.getAllProduct(page, size));
     }
 
     @GetMapping("/get-by-category-id/{categoryId}")

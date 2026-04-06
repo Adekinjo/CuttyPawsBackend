@@ -24,6 +24,7 @@ public class OrderMapper {
         dto.setPrice(orderItem.getPrice());
         dto.setStatus(orderItem.getOrderStatus().name());
         dto.setCreatedAt(orderItem.getCreatedAt());
+        dto.setUpdatedAt(orderItem.getUpdatedAt());
 
         // Map selected variants
         dto.setSelectedSize(orderItem.getSize());
@@ -77,6 +78,7 @@ public class OrderMapper {
                 .price(oi.getPrice())
                 .status(oi.getOrderStatus().name())
                 .createdAt(oi.getCreatedAt())
+                .updatedAt(oi.getUpdatedAt())
                 .selectedSize(oi.getSize())
                 .selectedColor(oi.getColor())
                 .productId(oi.getProduct() != null ? oi.getProduct().getId() : null)

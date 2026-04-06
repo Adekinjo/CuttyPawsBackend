@@ -8,6 +8,7 @@ import com.cuttypaws.entity.ProductSize;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -167,6 +168,52 @@ public class ProductMapper {
         // Add more defaults as needed
 
         return defaultColors.getOrDefault(colorName.toLowerCase(), "#CCCCCC");
+    }
+
+    public ProductDto mapProductToCardDto(Product product) {
+        ProductDto dto = new ProductDto();
+        dto.setId(product.getId());
+        dto.setName(product.getName());
+        dto.setDescription(product.getDescription());
+        dto.setOldPrice(product.getOldPrice());
+        dto.setNewPrice(product.getNewPrice());
+        dto.setThumbnailImageUrl(
+                product.getImages() != null && !product.getImages().isEmpty()
+                        ? product.getImages().get(0).getImageUrl()
+                        : null
+        );
+        dto.setImageUrls(
+                product.getImages() != null
+                        ? product.getImages().stream().map(ProductImage::getImageUrl).limit(1).toList()
+                        : List.of()
+        );
+        dto.setLikes(product.getLikes());
+        dto.setStock(product.getStock());
+        dto.setViewCount(product.getViewCount());
+        dto.setLastViewedDate(product.getLastViewedDate());
+
+        if (product.getCategory() != null) {
+            dto.setCategoryId(product.getCategory().getId());
+            dto.setCategory(product.getCategory().getName());
+        }
+
+        if (product.getSubCategory() != null) {
+            dto.setSubCategoryId(product.getSubCategory().getId());
+            dto.setSubCategory(product.getSubCategory().getName());
+        }
+
+        if (product.getUser() != null) {
+            dto.setUserId(product.getUser().getId());
+            dto.setCompanyName(
+                    product.getUser().getCompanyName() != null
+                            ? product.getUser().getCompanyName()
+                            : "No Company"
+            );
+        } else {
+            dto.setCompanyName("No Company");
+        }
+
+        return dto;
     }
 
 }

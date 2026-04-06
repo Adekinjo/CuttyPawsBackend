@@ -30,5 +30,6 @@ public class OrderItemDto {
     private String productImageUrl;
     private String selectedSize;
     private String selectedColor;
+    private LocalDateTime updatedAt;
 
 }

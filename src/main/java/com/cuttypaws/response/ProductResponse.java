@@ -31,8 +31,8 @@ public class ProductResponse {
     private CategoryDto category;
     private List<CategoryDto> categoryList;
 
-
     private ProductDto product;
+    private ProductDetailsDto productDetails;
     private List<ProductDto> productList;
 
     private List<SubCategoryDto> subCategoryList;
@@ -40,9 +40,10 @@ public class ProductResponse {
     private List<OrderDto> orderList;
     private List<SearchSuggestionDto> suggestions;
 
-
     public boolean isEmpty() {
-        return (productList == null || productList.isEmpty())
+        return (product == null)
+                && (productDetails == null)
+                && (productList == null || productList.isEmpty())
                 && (subCategoryList == null || subCategoryList.isEmpty())
                 && (categoryList == null || categoryList.isEmpty())
                 && (orderList == null || orderList.isEmpty())
