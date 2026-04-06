@@ -276,39 +276,153 @@ public class ProductServiceImpl implements ProductService {
         }
         return response;
     }
-
-
     @Override
-    @Cacheable(value = "products", condition = "@cacheToggleService.isEnabled()",
-            unless = "#result == null || #result.productList == null || #result.productList.empty")
-    public ProductResponse getAllProduct() {
-        log.info("🔍 Fetching all products from database (cache miss)");
+    @Cacheable(
+            value = "productDetails",
+            key = "#productId",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.productDetails == null"
+    )
+    public ProductResponse getProductDetails(Long productId) {
 
-        log.debug("✅ @Cacheable annotation detected for 'products' cache");
-
-        // Add timing to detect cache hits vs misses
         long startTime = System.currentTimeMillis();
 
-        List<ProductDto> productList = productRepo.findAll(Sort.by(Sort.Direction.DESC, "id"))
-                .stream()
-                .map(productMapper::mapProductToDtoBasic)
-                .collect(Collectors.toList());
+        log.info("Fetching product details for productId={}", productId);
 
+        Product product = productRepo.findProductDetailsById(productId)
+                .orElseThrow(() -> new NotFoundException("Product not found"));
+
+        log.info("Main product loaded: id={}, name={}, categoryId={}, subCategoryId={}",
+                product.getId(),
+                product.getName(),
+                product.getCategory() != null ? product.getCategory().getId() : null,
+                product.getSubCategory() != null ? product.getSubCategory().getId() : null
+        );
+
+        // Load collections safely
+        Product productImages = productRepo.findProductWithImages(productId).orElse(product);
+        Product productColors = productRepo.findProductWithColors(productId).orElse(product);
+        Product productSizes = productRepo.findProductWithSizes(productId).orElse(product);
+
+        product.setImages(productImages.getImages());
+        product.setColors(productColors.getColors());
+        product.setSizes(productSizes.getSizes());
+
+        log.info("Images loaded: {}", product.getImages().size());
+        log.info("Colors loaded: {}", product.getColors().size());
+        log.info("Sizes loaded: {}", product.getSizes().size());
+
+        ProductDto productDto = productMapper.mapProductToDtoBasic(product);
+
+        List<ProductDto> relatedProducts = List.of();
+        List<ProductDto> otherRelatedProducts = List.of();
+
+        // SAME SUBCATEGORY PRODUCTS
+        if (product.getSubCategory() != null) {
+
+            log.info("Searching related products in subCategoryId={}",
+                    product.getSubCategory().getId());
+
+            List<Product> rawRelatedProducts = productRepo
+                    .findRelatedProductsBySubCategory(
+                            product.getSubCategory().getId(),
+                            product.getId(),
+                            PageRequest.of(0, 12)
+                    );
+
+            log.info("Raw related products returned: {}",
+                    rawRelatedProducts.stream().map(Product::getId).toList());
+
+            relatedProducts = rawRelatedProducts.stream()
+                    .map(productMapper::mapProductToDtoBasic)
+                    .toList();
+
+            log.info("Mapped relatedProducts count={}", relatedProducts.size());
+        }
+
+        // SAME CATEGORY PRODUCTS
+        if (product.getCategory() != null) {
+
+            log.info("Searching other related products in categoryId={}",
+                    product.getCategory().getId());
+
+            List<ProductDto> rawCategoryProducts =
+                    productRepo.findOtherRelatedProductsByCategory(
+                                    product.getCategory().getId(),
+                                    product.getId(),
+                                    PageRequest.of(0, 20)
+                            )
+                            .stream()
+                            .map(productMapper::mapProductToDtoBasic)
+                            .toList();
+
+            log.info("Raw category products returned ids={}",
+                    rawCategoryProducts.stream().map(ProductDto::getId).toList());
+
+            Set<Long> relatedIds = relatedProducts.stream()
+                    .map(ProductDto::getId)
+                    .collect(Collectors.toSet());
+
+            log.info("Related product IDs removed from category list={}", relatedIds);
+
+            otherRelatedProducts = rawCategoryProducts.stream()
+                    .filter(p -> !relatedIds.contains(p.getId()))
+                    .limit(12)
+                    .toList();
+
+            log.info("Final otherRelatedProducts count={}", otherRelatedProducts.size());
+        }
+
+        ProductDetailsDto productDetailsDto = ProductDetailsDto.builder()
+                .product(productDto)
+                .relatedProducts(relatedProducts)
+                .otherRelatedProducts(otherRelatedProducts)
+                .build();
 
         long duration = System.currentTimeMillis() - startTime;
-        log.info("📦 Retrieved {} products from database in {}ms (CACHE MISS)", productList.size(), duration);
 
+        log.info("Product details loaded in {}ms | relatedProducts={} | otherRelatedProducts={}",
+                duration,
+                relatedProducts.size(),
+                otherRelatedProducts.size()
+        );
 
-        ProductResponse  response = ProductResponse.builder()
+        return ProductResponse.builder()
                 .status(200)
-                .productList(productList)
+                .message("Product details fetched successfully")
+                .timeStamp(LocalDateTime.now())
+                .productDetails(productDetailsDto)
                 .build();
-        if (response.isEmpty()) {
-            return response;
-        }
-        return response;
     }
 
+    @Cacheable(
+            value = "products",
+            key = "#page + ':' + #size",
+            condition = "@cacheToggleService.isEnabled()",
+            unless = "#result == null || #result.productList == null || #result.productList.isEmpty()"
+    )
+    @Override
+    public ProductResponse getAllProduct(int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 20);
+
+        long startTime = System.currentTimeMillis();
+
+        List<ProductDto> productList = productRepo.findProductCards(
+                        PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "id"))
+                ).stream()
+                .map(productMapper::mapProductToCardDto)
+                .toList();
+
+        long duration = System.currentTimeMillis() - startTime;
+        log.info("Retrieved {} products in {}ms", productList.size(), duration);
+
+        return ProductResponse.builder()
+                .status(200)
+                .productList(productList)
+                .timeStamp(LocalDateTime.now())
+                .build();
+    }
     @Override
     public List<ProductDto> getRelatedProducts(String searchTerm) {
         List<Product> products = productRepo.findBySearchTerm(searchTerm);
