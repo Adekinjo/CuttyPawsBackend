@@ -41,7 +41,6 @@ public class ServiceAdSubscriptionServiceImpl implements ServiceAdSubscriptionSe
     private final ServiceProfileRepo serviceProfileRepo;
     private final UserRepo userRepo;
     private final PaymentRepo paymentRepo;
-    private final StripeService stripeService;
     private final ServiceAdSubscriptionMapper mapper;
 
     @Override
@@ -81,7 +80,7 @@ public class ServiceAdSubscriptionServiceImpl implements ServiceAdSubscriptionSe
         payment.setEmail(currentUser.getEmail());
         payment.setCurrency("USD");
         payment.setProvider(PaymentProvider.STRIPE);
-        payment.setMethod("STRIPE"); // fix
+        payment.setMethod("PAYMENT_SHEET");
         payment.setReference(paymentReference);
         payment.setStatus(PaymentStatus.PENDING);
         payment.setPaymentPurpose(com.cuttypaws.enums.PaymentPurpose.SERVICE_AD);
@@ -89,95 +88,14 @@ public class ServiceAdSubscriptionServiceImpl implements ServiceAdSubscriptionSe
         payment.setTransactionId(UUID.randomUUID().toString());
         payment.setServiceAdSubscription(savedSubscription);
 
-        Payment savedPayment = paymentRepo.save(payment);
+        paymentRepo.save(payment);
 
-        try {
-            Session session = stripeService.createServiceAdCheckoutSession(savedSubscription, currentUser.getEmail());
-
-            savedSubscription.setCheckoutSessionId(session.getId());
-            savedSubscription.setPaymentUrl(session.getUrl());
-            serviceAdSubscriptionRepo.save(savedSubscription);
-
-            savedPayment.setCheckoutSessionId(session.getId());
-            savedPayment.setPaymentUrl(session.getUrl());
-            paymentRepo.save(savedPayment);
-
-            return UserResponse.builder()
-                    .status(201)
-                    .message("Advert subscription created successfully")
-                    .serviceAdSubscription(mapper.toDto(savedSubscription))
-                    .timeStamp(LocalDateTime.now())
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Failed to create Stripe checkout for service ad", e);
-            return UserResponse.builder()
-                    .status(500)
-                    .message("Unable to create advert checkout: " + e.getMessage())
-                    .timeStamp(LocalDateTime.now())
-                    .build();
-        }
-    }
-
-    @Override
-    @Transactional
-    public UserResponse confirmMyAdPayment(com.cuttypaws.dto.ConfirmServiceAdPaymentRequest request) {
-        ServiceAdSubscription subscription = serviceAdSubscriptionRepo.findByPaymentReference(request.getPaymentReference())
-                .orElseThrow(() -> new NotFoundException("Ad subscription not found"));
-
-        Payment payment = paymentRepo.findByReference(request.getPaymentReference())
-                .orElseThrow(() -> new NotFoundException("Payment not found"));
-
-        try {
-            Session session = stripeService.retrieveCheckoutSession(subscription.getCheckoutSessionId());
-
-            if (!"paid".equalsIgnoreCase(session.getPaymentStatus())) {
-                payment.setStatus(PaymentStatus.FAILED);
-                paymentRepo.save(payment);
-
-                subscription.setPaymentStatus(PaymentStatus.FAILED);
-                subscription.setIsActive(false);
-                serviceAdSubscriptionRepo.save(subscription);
-
-                return UserResponse.builder()
-                        .status(400)
-                        .message("Payment verification failed")
-                        .serviceAdSubscription(mapper.toDto(subscription))
-                        .timeStamp(LocalDateTime.now())
-                        .build();
-            }
-
-            deactivateExistingActiveSubscriptions(subscription.getServiceProfile().getId());
-
-            LocalDateTime now = LocalDateTime.now();
-
-            payment.setStatus(PaymentStatus.PAID);
-            payment.setPaymentIntentId(session.getPaymentIntent());
-            paymentRepo.save(payment);
-
-            subscription.setPaymentStatus(PaymentStatus.PAID);
-            subscription.setPaymentIntentId(session.getPaymentIntent());
-            subscription.setIsActive(true);
-            subscription.setPaidAt(now);
-            subscription.setStartsAt(now);
-            subscription.setEndsAt(now.plusDays(resolvePlanDurationDays(subscription.getPlanType())));
-            serviceAdSubscriptionRepo.save(subscription);
-
-            return UserResponse.builder()
-                    .status(200)
-                    .message("Advert payment confirmed and promotion activated successfully")
-                    .serviceAdSubscription(mapper.toDto(subscription))
-                    .timeStamp(LocalDateTime.now())
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Error confirming advert payment", e);
-            return UserResponse.builder()
-                    .status(500)
-                    .message("Unable to confirm advert payment: " + e.getMessage())
-                    .timeStamp(LocalDateTime.now())
-                    .build();
-        }
+        return UserResponse.builder()
+                .status(201)
+                .message("Advert subscription created successfully. Initialize payment to continue.")
+                .serviceAdSubscription(mapper.toDto(savedSubscription))
+                .timeStamp(LocalDateTime.now())
+                .build();
     }
 
     @Override

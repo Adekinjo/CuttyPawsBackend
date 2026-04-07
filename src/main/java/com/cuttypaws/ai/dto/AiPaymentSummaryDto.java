@@ -11,7 +11,7 @@ public class AiPaymentSummaryDto {
     private Long paymentId;
     private String reference;
     private String transactionId;
-    private String checkoutSessionId;
+    private String paymentIntentId;
     private String status;
     private String currency;
     private BigDecimal amount;

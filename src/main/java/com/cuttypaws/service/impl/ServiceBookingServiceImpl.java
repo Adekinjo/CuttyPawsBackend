@@ -1,6 +1,5 @@
 package com.cuttypaws.service.impl;
 
-import com.cuttypaws.dto.ConfirmServiceBookingPaymentRequest;
 import com.cuttypaws.dto.ServiceBookingDto;
 import com.cuttypaws.dto.CreateServiceBookingRequest;
 import com.cuttypaws.entity.Payment;
@@ -20,7 +19,6 @@ import com.cuttypaws.repository.ServiceProfileRepo;
 import com.cuttypaws.repository.UserRepo;
 import com.cuttypaws.response.UserResponse;
 import com.cuttypaws.service.interf.ServiceBookingService;
-import com.stripe.model.checkout.Session;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -43,7 +41,6 @@ public class ServiceBookingServiceImpl implements ServiceBookingService {
     private final ServiceProfileRepo serviceProfileRepo;
     private final PaymentRepo paymentRepo;
     private final UserRepo userRepo;
-    private final StripeService stripeService;
     private final ServiceBookingMapper serviceBookingMapper;
     private final EmailService emailService;
 
@@ -125,7 +122,7 @@ public class ServiceBookingServiceImpl implements ServiceBookingService {
         payment.setEmail(currentUser.getEmail());
         payment.setCurrency("USD");
         payment.setProvider(PaymentProvider.STRIPE);
-        payment.setMethod("STRIPE");
+        payment.setMethod("PAYMENT_SHEET");
         payment.setReference(paymentReference);
         payment.setStatus(PaymentStatus.PENDING);
         payment.setPaymentPurpose(PaymentPurpose.SERVICE_BOOKING);
@@ -135,87 +132,37 @@ public class ServiceBookingServiceImpl implements ServiceBookingService {
 
         Payment savedPayment = paymentRepo.save(payment);
 
-        try {
-            Session session = stripeService.createServiceBookingCheckoutSession(savedBooking, currentUser.getEmail());
+        ServiceBookingDto dto = serviceBookingMapper.toDto(savedBooking, savedPayment);
 
-            savedPayment.setCheckoutSessionId(session.getId());
-            savedPayment.setPaymentUrl(session.getUrl());
-            paymentRepo.save(savedPayment);
-
-            ServiceBookingDto dto = serviceBookingMapper.toDto(savedBooking, savedPayment);
-
-            return UserResponse.builder()
-                    .status(201)
-                    .message("Booking created successfully. Complete payment to confirm the booking.")
-                    .serviceBooking(dto)
-                    .timeStamp(LocalDateTime.now())
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Failed to create Stripe checkout for service booking", e);
-            return UserResponse.builder()
-                    .status(500)
-                    .message("Unable to create booking checkout: " + e.getMessage())
-                    .timeStamp(LocalDateTime.now())
-                    .build();
-        }
+        return UserResponse.builder()
+                .status(201)
+                .message("Booking created successfully. Initialize payment to continue.")
+                .serviceBooking(dto)
+                .timeStamp(LocalDateTime.now())
+                .build();
     }
 
-    @Override
-    @Transactional
-    public UserResponse confirmMyBookingPayment(ConfirmServiceBookingPaymentRequest request) {
-        ServiceBooking booking = serviceBookingRepo.findByPaymentReference(request.getPaymentReference())
+    @Transactional(readOnly = true)
+    public UserResponse getMyBookingStatus(UUID bookingId) {
+        User currentUser = getCurrentUser();
+
+        ServiceBooking booking = serviceBookingRepo.findById(bookingId)
                 .orElseThrow(() -> new NotFoundException("Booking not found"));
 
-        Payment payment = paymentRepo.findByReference(request.getPaymentReference())
-                .orElseThrow(() -> new NotFoundException("Payment not found"));
-
-        try {
-            Session session = stripeService.retrieveCheckoutSession(payment.getCheckoutSessionId());
-
-            if (!"paid".equalsIgnoreCase(session.getPaymentStatus())) {
-                payment.setStatus(PaymentStatus.FAILED);
-                paymentRepo.save(payment);
-
-                booking.setPaymentStatus(PaymentStatus.FAILED);
-                booking.setBookingStatus(BookingStatus.EXPIRED);
-                serviceBookingRepo.save(booking);
-
-                return UserResponse.builder()
-                        .status(400)
-                        .message("Payment verification failed")
-                        .serviceBooking(serviceBookingMapper.toDto(booking, payment))
-                        .timeStamp(LocalDateTime.now())
-                        .build();
-            }
-
-            LocalDateTime now = LocalDateTime.now();
-
-            payment.setStatus(PaymentStatus.PAID);
-            payment.setPaymentIntentId(session.getPaymentIntent());
-            paymentRepo.save(payment);
-
-            booking.setPaymentStatus(PaymentStatus.PAID);
-            booking.setBookingStatus(BookingStatus.CONFIRMED);
-            booking.setConfirmedAt(now);
-            serviceBookingRepo.save(booking);
-            sendBookingConfirmationEmails(booking);
-
+        if (!booking.getCustomer().getId().equals(currentUser.getId())) {
             return UserResponse.builder()
-                    .status(200)
-                    .message("Booking payment confirmed successfully")
-                    .serviceBooking(serviceBookingMapper.toDto(booking, payment))
-                    .timeStamp(LocalDateTime.now())
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Error confirming booking payment", e);
-            return UserResponse.builder()
-                    .status(500)
-                    .message("Unable to confirm booking payment: " + e.getMessage())
+                    .status(403)
+                    .message("You are not allowed to view this booking")
                     .timeStamp(LocalDateTime.now())
                     .build();
         }
+
+        return UserResponse.builder()
+                .status(200)
+                .message("Booking status retrieved successfully")
+                .serviceBooking(serviceBookingMapper.toDto(booking))
+                .timeStamp(LocalDateTime.now())
+                .build();
     }
 
     @Override
@@ -308,7 +255,8 @@ public class ServiceBookingServiceImpl implements ServiceBookingService {
         return trimmed.isBlank() ? null : trimmed;
     }
 
-    private void sendBookingConfirmationEmails(ServiceBooking booking) {
+    @Override
+    public void sendBookingConfirmationEmails(ServiceBooking booking) {
         try {
             User customer = booking.getCustomer();
             ServiceProfile profile = booking.getServiceProfile();

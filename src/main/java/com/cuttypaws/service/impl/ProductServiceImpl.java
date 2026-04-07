@@ -641,16 +641,6 @@ public class ProductServiceImpl implements ProductService {
                 .build();
     }
 
-
-//    private List<ProductDto> mapProducts(List<Product> products) {
-//        return products.stream()
-//                .map(productMapper::mapProductToDtoBasic)
-//                .collect(Collectors.toList());
-//    }
-
-
-
-
     @Override
     @CacheEvict(value = {
             "mixed-feed",

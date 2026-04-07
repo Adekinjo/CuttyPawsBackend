@@ -17,8 +17,6 @@ public class ServiceBookingMapper {
             return null;
         }
 
-        String paymentUrl = payment != null ? payment.getPaymentUrl() : null;
-
         return ServiceBookingDto.builder()
                 .id(booking.getId())
                 .customerId(booking.getCustomer() != null ? booking.getCustomer().getId() : null)
@@ -47,7 +45,6 @@ public class ServiceBookingMapper {
                 .bookingStatus(booking.getBookingStatus())
                 .paymentStatus(booking.getPaymentStatus())
                 .paymentReference(booking.getPaymentReference())
-                .paymentUrl(paymentUrl)
                 .confirmedAt(booking.getConfirmedAt())
                 .cancelledAt(booking.getCancelledAt())
                 .completedAt(booking.getCompletedAt())

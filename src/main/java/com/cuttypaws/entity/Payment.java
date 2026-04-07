@@ -47,14 +47,11 @@ public class Payment {
     @Column(nullable = false)
     private String currency;
 
-    @Column(name = "checkout_session_id", unique = true)
-    private String checkoutSessionId;
-
-    @Column(name = "payment_intent_id")
+    @Column(name = "payment_intent_id", unique = true)
     private String paymentIntentId;
 
-    @Column(name = "payment_url", length = 2000)
-    private String paymentUrl;
+    @Column(name = "stripe_customer_id")
+    private String stripeCustomerId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")

@@ -9,8 +9,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 public interface OrderItemRepo extends JpaRepository<OrderItem, Long>, JpaSpecificationExecutor<OrderItem> {
     @Query("SELECT oi FROM OrderItem oi WHERE oi.product.id IN :productIds")
     Page<OrderItem> findByProductIdIn(@Param("productIds") List<Long> productIds, Pageable pageable);
+    Optional<OrderItem> findByIdAndUserId(Long id, UUID userId);
 }

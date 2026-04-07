@@ -313,20 +313,47 @@ public class OrderItemServiceImpl implements OrderItemService {
     @Transactional
     @Override
     public OrderResponse getMyOrders(Pageable pageable) {
-        UUID userId = userService.getLoginUser().getId(); // ✅ THIS LINE GOES HERE
+        UUID userId = userService.getLoginUser().getId();
 
         Page<Order> page = orderRepo.findByUserId(userId, pageable);
+
+        List<OrderItemDto> orderItems = page.getContent().stream()
+                .flatMap(order -> order.getOrderItemList().stream())
+                .map(orderMapper::toOrderItemDto)
+                .toList();
 
         return OrderResponse.builder()
                 .status(200)
                 .message("My orders retrieved successfully")
-                .orderList(
-                        page.getContent().stream()
-                                .map(orderMapper::toOrderDto)
-                                .toList()
-                )
+                .orderItemList(orderItems)
                 .totalPage(page.getTotalPages())
                 .totalElement(page.getTotalElements())
+                .build();
+    }
+
+    @Override
+    public OrderResponse getOrderItemForAdmin(Long itemId) {
+        OrderItem orderItem = orderItemRepo.findById(itemId)
+                .orElseThrow(() -> new NotFoundException("Order item not found"));
+
+        return OrderResponse.builder()
+                .status(200)
+                .message("Order item retrieved successfully")
+                .orderItem(orderMapper.mapOrderItemToDtoPlusProductAndUser(orderItem))
+                .build();
+    }
+
+    @Override
+    public OrderResponse getMyOrderItemById(Long itemId) {
+        UUID userId = userService.getLoginUser().getId();
+
+        OrderItem orderItem = orderItemRepo.findByIdAndUserId(itemId, userId)
+                .orElseThrow(() -> new NotFoundException("Order item not found"));
+
+        return OrderResponse.builder()
+                .status(200)
+                .message("Order item retrieved successfully")
+                .orderItem(orderMapper.mapOrderItemToDtoPlusProductAndUser(orderItem))
                 .build();
     }
 

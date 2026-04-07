@@ -1,16 +1,19 @@
 package com.cuttypaws.service.impl;
 
-import com.cuttypaws.dto.PaymentRequest;
+import com.cuttypaws.dto.PaymentSheetRequest;
 import com.cuttypaws.entity.Payment;
+import com.cuttypaws.entity.ServiceAdSubscription;
+import com.cuttypaws.entity.ServiceBooking;
 import com.cuttypaws.entity.User;
 import com.cuttypaws.enums.PaymentProvider;
 import com.cuttypaws.enums.PaymentPurpose;
 import com.cuttypaws.enums.PaymentStatus;
 import com.cuttypaws.repository.PaymentRepo;
+import com.cuttypaws.repository.ServiceAdSubscriptionRepo;
+import com.cuttypaws.repository.ServiceBookingRepo;
 import com.cuttypaws.repository.UserRepo;
-import com.cuttypaws.response.PaymentResponse;
+import com.cuttypaws.response.PaymentSheetResponse;
 import com.cuttypaws.service.interf.PaymentService;
-import com.stripe.model.checkout.Session;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,23 +30,32 @@ public class PaymentServiceImpl implements PaymentService {
 
     private final PaymentRepo paymentRepo;
     private final UserRepo userRepo;
-    private final StripeService stripeService;
+    private final ServiceAdSubscriptionRepo serviceAdSubscriptionRepo;
+    private final ServiceBookingRepo serviceBookingRepo;
+    private final StripePaymentSheetService stripePaymentSheetService;
 
     @Override
     @Transactional
-    public PaymentResponse initializePayment(PaymentRequest request) {
+    public PaymentSheetResponse initializePaymentSheet(PaymentSheetRequest request) {
         try {
             if (request.getAmount() == null || request.getAmount().signum() <= 0) {
-                return PaymentResponse.builder()
+                return PaymentSheetResponse.builder()
                         .status(400)
                         .message("Invalid amount")
                         .build();
             }
 
             if (request.getEmail() == null || request.getEmail().isBlank()) {
-                return PaymentResponse.builder()
+                return PaymentSheetResponse.builder()
                         .status(400)
                         .message("Email is required")
+                        .build();
+            }
+
+            if (request.getUserId() == null) {
+                return PaymentSheetResponse.builder()
+                        .status(400)
+                        .message("User ID is required")
                         .build();
             }
 
@@ -54,6 +66,10 @@ public class PaymentServiceImpl implements PaymentService {
                     ? PaymentPurpose.ORDER
                     : request.getPaymentPurpose();
 
+            String platform = request.getPlatform() == null
+                    ? "WEB"
+                    : request.getPlatform().trim().toUpperCase();
+
             Payment payment = new Payment();
             payment.setAmount(request.getAmount().setScale(2, RoundingMode.HALF_UP));
             payment.setEmail(request.getEmail());
@@ -63,33 +79,88 @@ public class PaymentServiceImpl implements PaymentService {
                             : request.getCurrency().toUpperCase()
             );
             payment.setProvider(PaymentProvider.STRIPE);
-            payment.setMethod("STRIPE");
+            payment.setMethod("PAYMENT_SHEET");
             payment.setReference(buildReference(purpose));
             payment.setStatus(PaymentStatus.PENDING);
             payment.setPaymentPurpose(purpose);
             payment.setUser(user);
             payment.setTransactionId(UUID.randomUUID().toString());
 
+            if (purpose == PaymentPurpose.SERVICE_AD) {
+                if (request.getServiceAdSubscriptionId() == null) {
+                    return PaymentSheetResponse.builder()
+                            .status(400)
+                            .message("serviceAdSubscriptionId is required for SERVICE_AD")
+                            .build();
+                }
+
+                ServiceAdSubscription subscription = serviceAdSubscriptionRepo
+                        .findById(request.getServiceAdSubscriptionId())
+                        .orElseThrow(() -> new RuntimeException("Service ad subscription not found"));
+
+                payment.setServiceAdSubscription(subscription);
+            }
+
+            if (purpose == PaymentPurpose.SERVICE_BOOKING) {
+                if (request.getServiceBookingId() == null) {
+                    return PaymentSheetResponse.builder()
+                            .status(400)
+                            .message("serviceBookingId is required for SERVICE_BOOKING")
+                            .build();
+                }
+
+                ServiceBooking booking = serviceBookingRepo
+                        .findById(request.getServiceBookingId())
+                        .orElseThrow(() -> new RuntimeException("Service booking not found"));
+
+                payment.setServiceBooking(booking);
+            }
+
             Payment savedPayment = paymentRepo.save(payment);
 
-            Session session = stripeService.createOrderCheckoutSession(savedPayment);
+            StripePaymentSheetService.StripePaymentSheetInitResult stripeResult;
 
-            savedPayment.setCheckoutSessionId(session.getId());
-            savedPayment.setPaymentUrl(session.getUrl());
+            if ("MOBILE".equals(platform)) {
+                stripeResult = stripePaymentSheetService.createMobilePayment(savedPayment, user);
+
+                savedPayment.setStripeCustomerId(stripeResult.getCustomerId());
+
+                if (user.getStripeCustomerId() == null || user.getStripeCustomerId().isBlank()) {
+                    user.setStripeCustomerId(stripeResult.getCustomerId());
+                    userRepo.save(user);
+                }
+            } else {
+                stripeResult = stripePaymentSheetService.createWebPayment(savedPayment);
+            }
+
+            savedPayment.setPaymentIntentId(stripeResult.getPaymentIntentId());
             paymentRepo.save(savedPayment);
 
-            return PaymentResponse.builder()
+            log.info("Saved paymentIntentId={} for paymentId={} reference={}",
+                    savedPayment.getPaymentIntentId(),
+                    savedPayment.getId(),
+                    savedPayment.getReference());
+
+            return PaymentSheetResponse.builder()
                     .status(200)
                     .message("Payment initialized successfully")
-                    .authorizationUrl(session.getUrl())
-                    .reference(savedPayment.getReference())
+                    .paymentIntentId(stripeResult.getPaymentIntentId())
+                    .paymentIntentClientSecret(stripeResult.getPaymentIntentClientSecret())
+                    .customerId(stripeResult.getCustomerId())
+                    .customerEphemeralKeySecret(stripeResult.getCustomerEphemeralKeySecret())
+                    .publishableKey(stripeResult.getPublishableKey())
                     .paymentId(savedPayment.getId())
+                    .reference(savedPayment.getReference())
+                    .amount(savedPayment.getAmount())
+                    .currency(savedPayment.getCurrency())
+                    .userId(savedPayment.getUser().getId())
                     .paymentPurpose(savedPayment.getPaymentPurpose())
+                    .paymentStatus(savedPayment.getStatus().name())
                     .build();
 
         } catch (Exception e) {
-            log.error("Error initializing Stripe payment", e);
-            return PaymentResponse.builder()
+            log.error("Error initializing payment", e);
+            return PaymentSheetResponse.builder()
                     .status(500)
                     .message("Error initializing payment: " + e.getMessage())
                     .build();
@@ -97,12 +168,12 @@ public class PaymentServiceImpl implements PaymentService {
     }
 
     @Override
-    @Transactional
-    public PaymentResponse verifyPayment(String reference) {
+    public PaymentSheetResponse getPaymentStatus(String reference) {
         try {
             Optional<Payment> paymentOptional = paymentRepo.findByReference(reference);
+
             if (paymentOptional.isEmpty()) {
-                return PaymentResponse.builder()
+                return PaymentSheetResponse.builder()
                         .status(404)
                         .message("Payment not found")
                         .build();
@@ -110,94 +181,23 @@ public class PaymentServiceImpl implements PaymentService {
 
             Payment payment = paymentOptional.get();
 
-            if (payment.getStatus() == PaymentStatus.PAID) {
-                return PaymentResponse.builder()
-                        .status(200)
-                        .message("Payment already verified successfully")
-                        .paymentId(payment.getId())
-                        .userId(payment.getUser().getId())
-                        .amount(payment.getAmount())
-                        .reference(payment.getReference())
-                        .paymentPurpose(payment.getPaymentPurpose())
-                        .build();
-            }
-
-            if (payment.getCheckoutSessionId() == null) {
-                return PaymentResponse.builder()
-                        .status(400)
-                        .message("Checkout session not found for payment")
-                        .build();
-            }
-
-            Session session = stripeService.retrieveCheckoutSession(payment.getCheckoutSessionId());
-
-            if ("paid".equalsIgnoreCase(session.getPaymentStatus())) {
-                payment.setStatus(PaymentStatus.PAID);
-                payment.setPaymentIntentId(session.getPaymentIntent());
-                paymentRepo.save(payment);
-
-                return PaymentResponse.builder()
-                        .status(200)
-                        .message("Payment verified successfully")
-                        .paymentId(payment.getId())
-                        .userId(payment.getUser().getId())
-                        .amount(payment.getAmount())
-                        .reference(payment.getReference())
-                        .paymentPurpose(payment.getPaymentPurpose())
-                        .build();
-            }
-
-            if ("unpaid".equalsIgnoreCase(session.getPaymentStatus())) {
-                payment.setStatus(PaymentStatus.FAILED);
-                paymentRepo.save(payment);
-            }
-
-            return PaymentResponse.builder()
-                    .status(400)
-                    .message("Payment verification failed")
-                    .paymentId(payment.getId())
-                    .reference(reference)
-                    .paymentPurpose(payment.getPaymentPurpose())
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Error verifying Stripe payment", e);
-            return PaymentResponse.builder()
-                    .status(500)
-                    .message("Error verifying payment: " + e.getMessage())
-                    .reference(reference)
-                    .build();
-        }
-    }
-
-    @Override
-    public PaymentResponse getPaymentByReference(String reference) {
-        try {
-            Optional<Payment> paymentOptional = paymentRepo.findByReference(reference);
-            if (paymentOptional.isEmpty()) {
-                return PaymentResponse.builder()
-                        .status(404)
-                        .message("Payment not found")
-                        .build();
-            }
-
-            Payment payment = paymentOptional.get();
-
-            return PaymentResponse.builder()
+            return PaymentSheetResponse.builder()
                     .status(200)
                     .message("Payment retrieved successfully")
                     .paymentId(payment.getId())
-                    .userId(payment.getUser().getId())
+                    .reference(payment.getReference())
                     .amount(payment.getAmount())
                     .currency(payment.getCurrency())
-                    .reference(payment.getReference())
+                    .userId(payment.getUser().getId())
                     .paymentPurpose(payment.getPaymentPurpose())
-                    .authorizationUrl(payment.getPaymentUrl())
+                    .paymentStatus(payment.getStatus().name())
+                    .paymentIntentId(payment.getPaymentIntentId())
+                    .customerId(payment.getStripeCustomerId())
                     .build();
 
         } catch (Exception e) {
-            log.error("Error getting payment by reference", e);
-            return PaymentResponse.builder()
+            log.error("Error getting payment status", e);
+            return PaymentSheetResponse.builder()
                     .status(500)
                     .message("Error retrieving payment: " + e.getMessage())
                     .build();

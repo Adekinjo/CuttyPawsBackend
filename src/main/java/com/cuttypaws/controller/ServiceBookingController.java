@@ -1,6 +1,5 @@
 package com.cuttypaws.controller;
 
-import com.cuttypaws.dto.ConfirmServiceBookingPaymentRequest;
 import com.cuttypaws.dto.CreateServiceBookingRequest;
 import com.cuttypaws.response.UserResponse;
 import com.cuttypaws.service.interf.ServiceBookingService;
@@ -9,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/service-bookings")
@@ -26,12 +27,10 @@ public class ServiceBookingController {
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
-    @PostMapping("/my-bookings/confirm-payment")
+    @GetMapping("/my-bookings/{bookingId}/status")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<UserResponse> confirmMyBookingPayment(
-            @Valid @RequestBody ConfirmServiceBookingPaymentRequest request
-    ) {
-        UserResponse response = serviceBookingService.confirmMyBookingPayment(request);
+    public ResponseEntity<UserResponse> getMyBookingStatus(@PathVariable UUID bookingId) {
+        UserResponse response = serviceBookingService.getMyBookingStatus(bookingId);
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 

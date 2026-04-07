@@ -15,6 +15,10 @@ public interface OrderItemService {
     OrderResponse updateOrderItemStatus(Long orderItemId, String status);
     OrderResponse filterOrderItems(OrderStatus status, LocalDateTime startDate, LocalDateTime endDate, Long itemId, Pageable pageable);
 
+    OrderResponse getOrderItemForAdmin(Long itemId);
+
+    OrderResponse getMyOrderItemById(Long itemId);
+
     OrderResponse getCompanyProductOrders(UUID companyId, Pageable pageable);
 
     OrderResponse getMyOrders(Pageable pageable);

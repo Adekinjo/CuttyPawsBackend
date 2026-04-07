@@ -111,6 +111,9 @@ public class User {
     @Builder.Default
     private List<Follow> followers = new ArrayList<>();
 
+    @Column(name = "stripe_customer_id", unique = true)
+    private String stripeCustomerId;
+
     @PrePersist
     public void prePersist() {
         if (createdAt == null) {

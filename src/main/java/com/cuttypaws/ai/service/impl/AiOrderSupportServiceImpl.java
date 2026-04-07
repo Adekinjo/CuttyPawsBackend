@@ -58,7 +58,7 @@ public class AiOrderSupportServiceImpl implements AiOrderSupportService {
                 .paymentId(payment.getId())
                 .reference(payment.getReference())
                 .transactionId(payment.getTransactionId())
-                .checkoutSessionId(payment.getCheckoutSessionId())
+                .paymentIntentId(payment.getPaymentIntentId())
                 .status(payment.getStatus() != null ? payment.getStatus().name() : null)
                 .currency(payment.getCurrency())
                 .amount(payment.getAmount())

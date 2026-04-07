@@ -52,6 +52,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 uri.startsWith("/queue/") ||
                 uri.equals("/favicon.ico") ||
                 uri.startsWith("/error") ||
+                uri.startsWith("/webhook/stripe") ||
                 uri.startsWith("/services/public/") ||
                 ("GET".equalsIgnoreCase(method) && uri.startsWith("/service-reviews/")) ||
                 uri.startsWith("/products/filter-by-name-and-category")) {

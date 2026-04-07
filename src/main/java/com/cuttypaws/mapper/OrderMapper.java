@@ -71,7 +71,7 @@ public class OrderMapper {
         return dto;
     }
 
-    private OrderItemDto toOrderItemDto(OrderItem oi) {
+    public OrderItemDto toOrderItemDto(OrderItem oi) {
         return OrderItemDto.builder()
                 .id(oi.getId())
                 .quantity(oi.getQuantity())

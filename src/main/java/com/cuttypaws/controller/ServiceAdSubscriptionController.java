@@ -26,15 +26,6 @@ public class ServiceAdSubscriptionController {
         return ResponseEntity.status(response.getStatus()).body(response);
     }
 
-    @PostMapping("/my-subscriptions/confirm-payment")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<UserResponse> confirmMyAdPayment(
-            @Valid @RequestBody ConfirmServiceAdPaymentRequest request
-    ) {
-        UserResponse response = serviceAdSubscriptionService.confirmMyAdPayment(request);
-        return ResponseEntity.status(response.getStatus()).body(response);
-    }
-
     @GetMapping("/my-subscriptions")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserResponse> getMyAdSubscriptions() {

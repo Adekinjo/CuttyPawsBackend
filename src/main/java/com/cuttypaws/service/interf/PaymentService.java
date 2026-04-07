@@ -1,12 +1,9 @@
 package com.cuttypaws.service.interf;
 
-import com.cuttypaws.dto.*;
-import com.cuttypaws.response.PaymentResponse;
+import com.cuttypaws.dto.PaymentSheetRequest;
+import com.cuttypaws.response.PaymentSheetResponse;
 
 public interface PaymentService {
-    PaymentResponse initializePayment(PaymentRequest request);
-    PaymentResponse verifyPayment(String reference);
-
-    PaymentResponse getPaymentByReference(String reference);
+    PaymentSheetResponse initializePaymentSheet(PaymentSheetRequest request);
+    PaymentSheetResponse getPaymentStatus(String reference);
 }
-
