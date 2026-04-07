@@ -17,8 +17,7 @@ import java.util.UUID;
 
 public interface ProductRepo extends JpaRepository<Product, Long> {
 
-
-    List<Product> findByNameContainingOrDescriptionContaining(String name, String description);
+    List<Product> findTop8ByNameContainingIgnoreCase(String name);
 
     @Query("SELECT p FROM Product p WHERE " +
             "(:name IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%'))) AND " +
@@ -39,13 +38,6 @@ public interface ProductRepo extends JpaRepository<Product, Long> {
             @Param("minPrice") BigDecimal minPrice,
             @Param("maxPrice") BigDecimal maxPrice
     );
-
-    @Query("SELECT p FROM Product p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
-    List<Product> findBySearchTerm(@Param("searchTerm") String searchTerm);
-
-    @Query("SELECT p FROM Product p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :name, '%')) OR LOWER(p.category.name) LIKE LOWER(CONCAT('%', :categoryName, '%'))")
-    List<Product> findByNameContainingIgnoreCaseOrCategoryNameContainingIgnoreCase(@Param("name") String name, @Param("categoryName") String categoryName);
-
 
     @Query("SELECT p FROM Product p WHERE p.subCategory.id = :subCategoryId")
     List<Product> findBySubCategoryId(@Param("subCategoryId") Long subCategoryId);

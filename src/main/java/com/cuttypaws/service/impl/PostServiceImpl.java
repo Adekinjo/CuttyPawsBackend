@@ -302,7 +302,7 @@ public class PostServiceImpl implements PostService {
     )
     public PostResponse getPostById(Long postId) {
         try {
-            Post post = postRepo.findByIdWithLikesAndMedia(postId)
+            Post post = postRepo.findByIdWithOwnerAndMedia(postId)
                     .orElseThrow(() -> new NotFoundException("Post not found"));
 
             PostDto postDto = mapper.mapPostToDto(post,null);

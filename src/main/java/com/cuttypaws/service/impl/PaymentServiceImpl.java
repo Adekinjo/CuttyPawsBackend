@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.RoundingMode;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -54,7 +55,7 @@ public class PaymentServiceImpl implements PaymentService {
                     : request.getPaymentPurpose();
 
             Payment payment = new Payment();
-            payment.setAmount(request.getAmount());
+            payment.setAmount(request.getAmount().setScale(2, RoundingMode.HALF_UP));
             payment.setEmail(request.getEmail());
             payment.setCurrency(
                     request.getCurrency() == null || request.getCurrency().isBlank()

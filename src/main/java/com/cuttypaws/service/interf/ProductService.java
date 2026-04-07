@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ProductService {
-    List<ProductDto> searchProducts(String query);
 
     ProductResponse createProduct(Long subCategoryId, List<MultipartFile> images, String name, String description, BigDecimal oldPrice, BigDecimal newPrice, List<String> sizes, List<String> colors, Integer stock);
 
@@ -22,19 +21,13 @@ public interface ProductService {
 
     ProductResponse getProductById(Long productId);
 
-    //ProductResponse getAllProduct();
-
     ProductResponse getProductDetails(Long productId);
 
     ProductResponse getAllProduct(int page, int size);
 
-    List<ProductDto> getRelatedProducts(String query);
-
     ProductResponse getProductByCategory(Long categoryId);
 
     ProductResponse searchProduct(String searchValue, Long userId, Long categoryId);
-
-    ProductResponse getProductSuggestions(String query);
 
     ProductResponse getProductsByNameAndCategory(String name, Long categoryId);
 
@@ -47,6 +40,7 @@ public interface ProductService {
     ProductResponse getAllProductsWithLikes();
 
     ProductResponse getTrendingProducts();
+
     void trackProductView(Long productId);
 
     ProductResponse likeProduct(Long productId);

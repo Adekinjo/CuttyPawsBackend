@@ -9,6 +9,9 @@ import com.stripe.param.checkout.SessionCreateParams;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
 @Service
 public class StripeService {
 
@@ -16,6 +19,12 @@ public class StripeService {
     private String frontendUrl;
 
     public Session createOrderCheckoutSession(Payment payment) throws StripeException {
+        if (payment == null || payment.getAmount() == null) {
+            throw new IllegalArgumentException("Payment amount is required");
+        }
+
+        BigDecimal normalizedAmount = payment.getAmount().setScale(2, RoundingMode.HALF_UP);
+
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.PAYMENT)
                 .setCustomerEmail(payment.getEmail())
@@ -30,7 +39,7 @@ public class StripeService {
                                 .setPriceData(
                                         SessionCreateParams.LineItem.PriceData.builder()
                                                 .setCurrency(payment.getCurrency().toLowerCase())
-                                                .setUnitAmount(payment.getAmount().movePointRight(2).longValueExact())
+                                                .setUnitAmount(normalizedAmount.movePointRight(2).longValueExact())
                                                 .setProductData(
                                                         SessionCreateParams.LineItem.PriceData.ProductData.builder()
                                                                 .setName("CuttyPaws Order Payment")

@@ -423,16 +423,6 @@ public class ProductServiceImpl implements ProductService {
                 .timeStamp(LocalDateTime.now())
                 .build();
     }
-    @Override
-    public List<ProductDto> getRelatedProducts(String searchTerm) {
-        List<Product> products = productRepo.findBySearchTerm(searchTerm);
-        if (products.isEmpty()) {
-            throw new NotFoundException("No related products found for search term: " + searchTerm);
-        }
-        return products.stream()
-                .map(productMapper::mapProductToDtoBasic)
-                .collect(Collectors.toList());
-    }
 
     @Override
     public ProductResponse getProductByCategory(Long categoryId) {
@@ -451,7 +441,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResponse searchProduct(String searchValue, Long userId, Long categoryId) {
-        List<Product> products = productRepo.findByNameContainingOrDescriptionContaining(searchValue, searchValue);
+        List<Product> products = productRepo.findTop8ByNameContainingIgnoreCase(searchValue);
         if (products.isEmpty()) {
             throw new NotFoundException("Product not found");
         }
@@ -463,40 +453,6 @@ public class ProductServiceImpl implements ProductService {
                 .productList(productDtoList)
                 .build();
     }
-
-    @Override
-    public ProductResponse getProductSuggestions(String query) {
-        if (query == null || query.length() < 2) {
-            return ProductResponse.builder()
-                    .status(200)
-                    .productList(List.of())
-                    .build();
-        }
-
-        List<Product> products = productRepo.findByNameContainingOrDescriptionContaining(query, query);
-        if (products.isEmpty()) {
-            return ProductResponse.builder()
-                    .status(200)
-                    .productList(List.of())
-                    .build();
-        }
-        List<ProductDto> productDtos = products.stream()
-                .map(productMapper::mapProductToDtoBasic)
-                .collect(Collectors.toList());
-        return ProductResponse.builder()
-                .status(200)
-                .productList(productDtos)
-                .build();
-    }
-
-    @Override
-    public List<ProductDto> searchProducts(String query) {
-        List<Product> products = productRepo.findByNameContainingIgnoreCaseOrCategoryNameContainingIgnoreCase(query, query);
-        return products.stream()
-                .map(productMapper::mapProductToDtoBasic)
-                .collect(Collectors.toList());
-    }
-
 
     @Override
     public ProductResponse getProductsByNameAndCategory(String name, Long categoryId) {
@@ -686,11 +642,11 @@ public class ProductServiceImpl implements ProductService {
     }
 
 
-    private List<ProductDto> mapProducts(List<Product> products) {
-        return products.stream()
-                .map(productMapper::mapProductToDtoBasic)
-                .collect(Collectors.toList());
-    }
+//    private List<ProductDto> mapProducts(List<Product> products) {
+//        return products.stream()
+//                .map(productMapper::mapProductToDtoBasic)
+//                .collect(Collectors.toList());
+//    }
 
 
 
@@ -919,7 +875,7 @@ public class ProductServiceImpl implements ProductService {
 
         String cleanedQuery = query.trim();
 
-        List<Product> products = productRepo.findByNameContainingOrDescriptionContaining(cleanedQuery, cleanedQuery);
+        List<Product> products = productRepo.findTop8ByNameContainingIgnoreCase(cleanedQuery);
         List<Category> categories = categoryRepo.searchCategories(cleanedQuery);
         List<SubCategory> subCategories = subCategoryRepo.searchSubCategories(cleanedQuery);
 
