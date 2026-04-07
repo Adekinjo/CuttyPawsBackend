@@ -32,6 +32,7 @@ public class ProductResponse {
     private List<CategoryDto> categoryList;
 
     private ProductDto product;
+    private Integer stock;
     private ProductDetailsDto productDetails;
     private List<ProductDto> productList;
 

@@ -17,14 +17,6 @@ public interface PostRepo extends JpaRepository<Post, Long> {
     Long countByOwnerId(@Param("userId") UUID userId);
 
     @Query("""
-       SELECT p FROM Post p
-       LEFT JOIN FETCH p.likes
-       LEFT JOIN FETCH p.media
-       WHERE p.id = :postId
-       """)
-    Optional<Post> findByIdWithLikesAndMedia(@Param("postId") Long postId);
-
-    @Query("""
    SELECT DISTINCT p
    FROM Post p
    LEFT JOIN FETCH p.owner
