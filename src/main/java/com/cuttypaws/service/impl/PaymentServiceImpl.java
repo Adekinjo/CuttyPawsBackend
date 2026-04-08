@@ -81,6 +81,7 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setProvider(PaymentProvider.STRIPE);
             payment.setMethod("PAYMENT_SHEET");
             payment.setReference(buildReference(purpose));
+            payment.setPaymentIntentId(payment.getPaymentIntentId());
             payment.setStatus(PaymentStatus.PENDING);
             payment.setPaymentPurpose(purpose);
             payment.setUser(user);
