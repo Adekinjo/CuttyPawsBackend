@@ -60,12 +60,11 @@ public class FeedComposerServiceImpl implements FeedComposerService {
         int safeLimit = Math.min(Math.max(limit, 1), 12);
         int fetchSize = safeLimit + 1;
 
-        // 1) fetch post ids with cursor
-        List<Long> postIds = (cursorCreatedAt == null || cursorId == null)
+        List<Long> fetchedPostIds = (cursorCreatedAt == null || cursorId == null)
                 ? postRepo.fetchFeedIdsFirst(PageRequest.of(0, fetchSize))
                 : postRepo.fetchFeedIdsAfter(cursorCreatedAt, cursorId, PageRequest.of(0, fetchSize));
 
-        if (postIds == null || postIds.isEmpty()) {
+        if (fetchedPostIds == null || fetchedPostIds.isEmpty()) {
             return FeedResponseDto.builder()
                     .items(List.of())
                     .count(0)
@@ -76,18 +75,12 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                     .build();
         }
 
-        boolean hasMore = postIds.size() > safeLimit;
-        if (hasMore) {
-            postIds = postIds.subList(0, safeLimit);
-        }
-
-        // 2) hydrate posts
-        List<Post> posts = postRepo.findAllWithOwnerAndMediaByIdIn(postIds);
+        List<Post> posts = postRepo.findAllWithOwnerAndMediaByIdIn(fetchedPostIds);
 
         Map<Long, Post> postMap = posts.stream()
                 .collect(Collectors.toMap(Post::getId, Function.identity(), (a, b) -> a));
 
-        List<Post> orderedPosts = postIds.stream()
+        List<Post> orderedPosts = fetchedPostIds.stream()
                 .map(postMap::get)
                 .filter(Objects::nonNull)
                 .toList();
@@ -103,7 +96,9 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                     .build();
         }
 
-        List<Long> orderedPostIds = orderedPosts.stream().map(Post::getId).toList();
+        List<Long> orderedPostIds = orderedPosts.stream()
+                .map(Post::getId)
+                .toList();
 
         Map<Long, Integer> likeCountMap = postLikeRepo.countLikesByPostIds(orderedPostIds).stream()
                 .collect(Collectors.toMap(
@@ -143,12 +138,24 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                 })
                 .toList();
 
-        // 3) build service ad items
+        // rotate ad/product windows by cursor
+        int adOffset = cursorId == null ? 0 : Math.abs(cursorId.intValue()) % 6;
+        int productOffset = cursorId == null ? 0 : Math.abs(cursorId.intValue()) % 8;
+
         List<ServiceAdSubscription> adSubscriptions = serviceAdSubscriptionRepo.findFeedAdCandidates(
                 LocalDateTime.now(),
                 PaymentStatus.PAID,
-                PageRequest.of(0, 6)
+                PageRequest.of(adOffset, 6)
         );
+
+        // fallback if offset page is empty
+        if (adSubscriptions.isEmpty()) {
+            adSubscriptions = serviceAdSubscriptionRepo.findFeedAdCandidates(
+                    LocalDateTime.now(),
+                    PaymentStatus.PAID,
+                    PageRequest.of(0, 6)
+            );
+        }
 
         List<FeedItemDto> adItems = adSubscriptions.stream()
                 .map(ServiceAdSubscription::getServiceProfile)
@@ -162,8 +169,16 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                         .build())
                 .toList();
 
-        // 4) build product items
-        List<Product> candidateProducts = productRepo.findFeedProductCandidates(PageRequest.of(0, 8));
+        List<Product> candidateProducts = productRepo.findFeedProductCandidates(
+                PageRequest.of(productOffset, 8)
+        );
+
+        // fallback if offset page is empty
+        if (candidateProducts.isEmpty()) {
+            candidateProducts = productRepo.findFeedProductCandidates(
+                    PageRequest.of(0, 8)
+            );
+        }
 
         List<FeedItemDto> productItems = candidateProducts.stream()
                 .map(this::mapProductToDto)
@@ -175,30 +190,59 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                         .build())
                 .toList();
 
+        BlendResult blendResult = blendFeed(postItems, adItems, productItems, safeLimit);
 
-        // 5) blend
-        List<FeedItemDto> finalFeed = blendFeed(postItems, adItems, productItems, safeLimit);
-        System.out.println("finalFeed types = " + finalFeed.stream()
-                .map(item -> item.getType().name())
-                .toList());
+        FeedItemDto lastDisplayedPostItem = null;
+        for (int i = blendResult.items().size() - 1; i >= 0; i--) {
+            FeedItemDto item = blendResult.items().get(i);
+            if (item.getType() == FeedItemType.POST && item.getPost() != null) {
+                lastDisplayedPostItem = item;
+                break;
+            }
+        }
+
+        LocalDateTime nextCursorCreatedAt = null;
+        Long nextCursorId = null;
+
+        if (lastDisplayedPostItem != null && lastDisplayedPostItem.getPost() != null) {
+            Long lastDisplayedPostId = lastDisplayedPostItem.getPost().getId();
+
+            Post lastDisplayedPost = orderedPosts.stream()
+                    .filter(p -> Objects.equals(p.getId(), lastDisplayedPostId))
+                    .findFirst()
+                    .orElse(null);
+
+            if (lastDisplayedPost != null) {
+                nextCursorCreatedAt = lastDisplayedPost.getCreatedAt();
+                nextCursorId = lastDisplayedPost.getId();
+            }
+        }
+
+        boolean hasMore = blendResult.consumedPostCount() < orderedPosts.size();
+
         log.info("postItems size = {}", postItems.size());
         log.info("adItems size = {}", adItems.size());
         log.info("productItems size = {}", productItems.size());
-        log.info("finalFeed types = {}", finalFeed.stream()
+        log.info("adOffset = {}", adOffset);
+        log.info("productOffset = {}", productOffset);
+        log.info("finalFeed types = {}", blendResult.items().stream()
                 .map(item -> item.getType().name())
                 .toList());
 
-        Post lastPost = orderedPosts.get(orderedPosts.size() - 1);
-
         return FeedResponseDto.builder()
-                .items(finalFeed)
-                .count(finalFeed.size())
+                .items(blendResult.items())
+                .count(blendResult.items().size())
                 .generatedAt(LocalDateTime.now())
-                .nextCursorCreatedAt(lastPost.getCreatedAt())
-                .nextCursorId(lastPost.getId())
+                .nextCursorCreatedAt(nextCursorCreatedAt)
+                .nextCursorId(nextCursorId)
                 .hasMore(hasMore)
                 .build();
     }
+
+    private record BlendResult(
+            List<FeedItemDto> items,
+            int consumedPostCount
+    ) {}
 
     private double scorePost(Post post, int likeCount, int commentCount) {
         double score = 0.0;
@@ -250,7 +294,7 @@ public class FeedComposerServiceImpl implements FeedComposerService {
         return score;
     }
 
-    private List<FeedItemDto> blendFeed(
+    private BlendResult blendFeed(
             List<FeedItemDto> posts,
             List<FeedItemDto> ads,
             List<FeedItemDto> products,
@@ -263,28 +307,24 @@ public class FeedComposerServiceImpl implements FeedComposerService {
         int productIndex = 0;
 
         while (result.size() < limit && postIndex < posts.size()) {
-            // 4 posts
             for (int i = 0; i < 4 && result.size() < limit && postIndex < posts.size(); i++) {
                 result.add(posts.get(postIndex++));
             }
 
-            // 1 service ad
             if (result.size() < limit && adIndex < ads.size()) {
                 result.add(ads.get(adIndex++));
             }
 
-            // 2 posts
             for (int i = 0; i < 2 && result.size() < limit && postIndex < posts.size(); i++) {
                 result.add(posts.get(postIndex++));
             }
 
-            // 1 product recommendation
             if (result.size() < limit && productIndex < products.size()) {
                 result.add(products.get(productIndex++));
             }
         }
 
-        return result;
+        return new BlendResult(result, postIndex);
     }
 
     private ServiceProfileDto mapServiceProfileToDto(ServiceProfile serviceProfile) {
