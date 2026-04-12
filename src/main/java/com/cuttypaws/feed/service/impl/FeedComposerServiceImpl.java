@@ -57,7 +57,7 @@ public class FeedComposerServiceImpl implements FeedComposerService {
             Long cursorId,
             int limit
     ) {
-        int safeLimit = Math.min(Math.max(limit, 1), 12);
+        int safeLimit = Math.min(Math.max(limit, 1), 8);
         int fetchSize = safeLimit + 1;
 
         List<Long> fetchedPostIds = (cursorCreatedAt == null || cursorId == null)
