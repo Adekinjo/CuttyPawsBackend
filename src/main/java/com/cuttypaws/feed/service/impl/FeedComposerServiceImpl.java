@@ -138,24 +138,40 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                 })
                 .toList();
 
-        // rotate ad/product windows by cursor
-        int adOffset = cursorId == null ? 0 : Math.abs(cursorId.intValue()) % 6;
-        int productOffset = cursorId == null ? 0 : Math.abs(cursorId.intValue()) % 8;
-
-        List<ServiceAdSubscription> adSubscriptions = serviceAdSubscriptionRepo.findFeedAdCandidates(
+        List<ServiceAdSubscription> allAdCandidates = serviceAdSubscriptionRepo.findFeedAdCandidates(
                 LocalDateTime.now(),
                 PaymentStatus.PAID,
-                PageRequest.of(adOffset, 6)
+                PageRequest.of(0, 50)
         );
 
-        // fallback if offset page is empty
-        if (adSubscriptions.isEmpty()) {
-            adSubscriptions = serviceAdSubscriptionRepo.findFeedAdCandidates(
-                    LocalDateTime.now(),
-                    PaymentStatus.PAID,
-                    PageRequest.of(0, 6)
-            );
+        List<Product> allProductCandidates = productRepo.findFeedProductCandidates(
+                PageRequest.of(0, 50)
+        );
+
+        int adStartIndex = 0;
+        int productStartIndex = 0;
+
+        if (cursorId != null) {
+            if (!allAdCandidates.isEmpty()) {
+                adStartIndex = Math.abs(cursorId.intValue()) % allAdCandidates.size();
+            }
+            if (!allProductCandidates.isEmpty()) {
+                productStartIndex = Math.abs(cursorId.intValue()) % allProductCandidates.size();
+            }
         }
+
+        List<ServiceAdSubscription> adSubscriptions = rotateAndTake(allAdCandidates, adStartIndex, 6);
+        List<Product> candidateProducts = rotateAndTake(allProductCandidates, productStartIndex, 8);
+
+        log.info("allAdCandidates ids = {}",
+                allAdCandidates.stream().map(ServiceAdSubscription::getId).toList());
+        log.info("selected adSubscriptions ids = {}",
+                adSubscriptions.stream().map(ServiceAdSubscription::getId).toList());
+
+        log.info("allProductCandidates ids = {}",
+                allProductCandidates.stream().map(Product::getId).toList());
+        log.info("selected candidateProducts ids = {}",
+                candidateProducts.stream().map(Product::getId).toList());
 
         List<FeedItemDto> adItems = adSubscriptions.stream()
                 .map(ServiceAdSubscription::getServiceProfile)
@@ -168,17 +184,6 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                         .score(scoreServiceAd(dto))
                         .build())
                 .toList();
-
-        List<Product> candidateProducts = productRepo.findFeedProductCandidates(
-                PageRequest.of(productOffset, 8)
-        );
-
-        // fallback if offset page is empty
-        if (candidateProducts.isEmpty()) {
-            candidateProducts = productRepo.findFeedProductCandidates(
-                    PageRequest.of(0, 8)
-            );
-        }
 
         List<FeedItemDto> productItems = candidateProducts.stream()
                 .map(this::mapProductToDto)
@@ -223,8 +228,8 @@ public class FeedComposerServiceImpl implements FeedComposerService {
         log.info("postItems size = {}", postItems.size());
         log.info("adItems size = {}", adItems.size());
         log.info("productItems size = {}", productItems.size());
-        log.info("adOffset = {}", adOffset);
-        log.info("productOffset = {}", productOffset);
+        log.info("adStartIndex = {}", adStartIndex);
+        log.info("productStartIndex = {}", productStartIndex);
         log.info("finalFeed types = {}", blendResult.items().stream()
                 .map(item -> item.getType().name())
                 .toList());
@@ -237,6 +242,23 @@ public class FeedComposerServiceImpl implements FeedComposerService {
                 .nextCursorId(nextCursorId)
                 .hasMore(hasMore)
                 .build();
+    }
+
+    private <T> List<T> rotateAndTake(List<T> source, int startIndex, int maxCount) {
+        if (source == null || source.isEmpty() || maxCount <= 0) {
+            return List.of();
+        }
+
+        List<T> result = new ArrayList<>();
+        int size = source.size();
+        int limit = Math.min(maxCount, size);
+
+        for (int i = 0; i < limit; i++) {
+            int index = (startIndex + i) % size;
+            result.add(source.get(index));
+        }
+
+        return result;
     }
 
     private record BlendResult(
