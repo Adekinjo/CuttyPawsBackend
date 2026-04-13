@@ -79,20 +79,19 @@ public class PostServiceImpl implements PostService {
 
             List<PostMedia> mediaList = request.getMedia().stream()
                     .map(file -> {
-                        String url = awsS3Service.uploadMedia(file);
-                        //MediaType type = file.getContentType().startsWith("video/") ? MediaType.VIDEO : MediaType.IMAGE;
-
                         String contentType = file.getContentType();
-                        MediaType type = (contentType != null && contentType.startsWith("video/"))
-                                ? MediaType.VIDEO
-                                : MediaType.IMAGE;
+                        boolean isVideo = contentType != null && contentType.startsWith("video/");
+                        MediaType type = isVideo ? MediaType.VIDEO : MediaType.IMAGE;
+
+                        String folder = isVideo ? "posts/videos/original" : "posts/images";
+                        String url = awsS3Service.uploadMedia(file, folder);
 
                         return PostMedia.builder()
                                 .mediaUrl(url)
-                                .streamUrl(url)
+                                .streamUrl(null)
                                 .thumbnailUrl(null)
                                 .durationSeconds(null)
-                                .processed(Boolean.TRUE)
+                                .processed(!isVideo)
                                 .mediaType(type)
                                 .post(post)
                                 .build();
@@ -165,30 +164,44 @@ public class PostServiceImpl implements PostService {
                 log.info("🗑 Removing {} media items from post {}", request.getMediaToDelete().size(), postId);
 
                 // Remove from collection (orphanRemoval=true will delete rows)
-                post.getMedia().removeIf(m -> m.getId() != null && request.getMediaToDelete().contains(m.getId()));
-            }
+                post.getMedia().removeIf(m -> {
+                    boolean shouldDelete = m.getId() != null && request.getMediaToDelete().contains(m.getId());
+
+                    if (shouldDelete) {
+                        if (m.getMediaUrl() != null) {
+                            awsS3Service.deleteMedia(m.getMediaUrl());
+                        }
+                        if (m.getThumbnailUrl() != null) {
+                            awsS3Service.deleteMedia(m.getThumbnailUrl());
+                        }
+                        if (m.getStreamUrl() != null) {
+                            awsS3Service.deleteMedia(m.getStreamUrl());
+                        }
+                    }
+
+                    return shouldDelete;
+                });            }
 
             // 2) Add new media uploads (optional)
             if (request.getMedia() != null && !request.getMedia().isEmpty()) {
-                log.info("📤 Uploading {} new media files for post {}", request.getMedia().size(), postId);
 
                 for (var file : request.getMedia()) {
                     if (file == null || file.isEmpty()) continue;
 
-                    String url = awsS3Service.uploadMedia(file);
-
                     String contentType = file.getContentType();
-                    MediaType type = (contentType != null && contentType.startsWith("video/"))
-                            ? MediaType.VIDEO
-                            : MediaType.IMAGE;
+                    boolean isVideo = contentType != null && contentType.startsWith("video/");
+                    MediaType type = isVideo ? MediaType.VIDEO : MediaType.IMAGE;
+
+                    String folder = isVideo ? "posts/videos/original" : "posts/images";
+                    String url = awsS3Service.uploadMedia(file, folder);
 
                     PostMedia pm = PostMedia.builder()
                             .mediaUrl(url)
                             .mediaType(type)
-                            .streamUrl(url)
+                            .streamUrl(null)
                             .thumbnailUrl(null)
                             .durationSeconds(null)
-                            .processed(Boolean.TRUE)
+                            .processed(!isVideo)
                             .post(post)
                             .build();
 
@@ -211,8 +224,6 @@ public class PostServiceImpl implements PostService {
             // use userId as current user for isLikedByCurrentUser
             PostDto postDto = mapper.mapPostToDto(updatedPost, userId);
 
-            log.info("✅ Post updated successfully: postId={}", postId);
-
             return PostResponse.builder()
                     .status(200)
                     .message("Post updated successfully")
@@ -220,21 +231,18 @@ public class PostServiceImpl implements PostService {
                     .build();
 
         } catch (NotFoundException e) {
-            log.error("❌ Post not found: {}", e.getMessage());
             return PostResponse.builder()
                     .status(404)
                     .message(e.getMessage())
                     .build();
 
         } catch (UnauthorizedException e) {
-            log.error("❌ Unauthorized update: {}", e.getMessage());
             return PostResponse.builder()
                     .status(403)
                     .message(e.getMessage())
                     .build();
 
         } catch (Exception e) {
-            log.error("❌ Error updating post {}: {}", postId, e.getMessage(), e);
             return PostResponse.builder()
                     .status(500)
                     .message("Failed to update post: " + e.getMessage())
@@ -264,9 +272,22 @@ public class PostServiceImpl implements PostService {
                 throw new UnauthorizedException("You can only delete your own posts");
             }
 
+            if (post.getMedia() != null) {
+                post.getMedia().forEach(media -> {
+                    if (media.getMediaUrl() != null) {
+                        awsS3Service.deleteMedia(media.getMediaUrl());
+                    }
+                    if (media.getThumbnailUrl() != null) {
+                        awsS3Service.deleteMedia(media.getThumbnailUrl());
+                    }
+                    if (media.getStreamUrl() != null) {
+                        awsS3Service.deleteMedia(media.getStreamUrl());
+                    }
+                });
+            }
+
             postRepo.delete(post);
 
-            log.info("✅ Post deleted successfully: {}", postId);
             return PostResponse.builder()
                     .status(200)
                     .message("Post deleted successfully")
@@ -318,7 +339,6 @@ public class PostServiceImpl implements PostService {
                     .message(e.getMessage())
                     .build();
         } catch (Exception e) {
-            log.error("❌ Error retrieving post {}: {}", postId, e.getMessage(), e);
             return PostResponse.builder()
                     .status(500)
                     .message("Failed to retrieve post: " + e.getMessage())
@@ -341,7 +361,6 @@ public class PostServiceImpl implements PostService {
                     .build();
 
         } catch (Exception e) {
-            log.error("❌ Error retrieving posts for user {}: {}", userId, e.getMessage(), e);
             return PostResponse.builder()
                     .status(500)
                     .message("Failed to retrieve posts: " + e.getMessage())

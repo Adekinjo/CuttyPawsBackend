@@ -95,9 +95,9 @@ public class ProductServiceImpl implements ProductService {
         }
 
         // Save product images
-        List<ProductImage> productImages = images.stream()
+        List<ProductImage> productImages = (images == null ? List.<MultipartFile>of() : images).stream()
                 .map(image -> {
-                    String imageUrl = awsS3Service.uploadMedia(image); // changed
+                    String imageUrl = awsS3Service.uploadMedia(image, "products/images");
                     ProductImage productImage = new ProductImage();
                     productImage.setImageUrl(imageUrl);
                     productImage.setProduct(product);
@@ -199,10 +199,17 @@ public class ProductServiceImpl implements ProductService {
 
         // Update images if provided
         if (images != null && !images.isEmpty()) {
+            product.getImages().forEach(existingImage -> {
+                if (existingImage.getImageUrl() != null) {
+                    awsS3Service.deleteMedia(existingImage.getImageUrl());
+                }
+            });
+
             product.getImages().clear();
+
             List<ProductImage> productImages = images.stream()
                     .map(image -> {
-                        String imageUrl = awsS3Service.uploadMedia(image);  // changed
+                        String imageUrl = awsS3Service.uploadMedia(image, "products/images");
                         ProductImage productImage = new ProductImage();
                         productImage.setImageUrl(imageUrl);
                         productImage.setProduct(product);
@@ -212,7 +219,6 @@ public class ProductServiceImpl implements ProductService {
 
             product.getImages().addAll(productImages);
         }
-
         // Save the updated product
         productRepo.save(product);
 
@@ -232,13 +238,18 @@ public class ProductServiceImpl implements ProductService {
             "allSubCategories", "subCategoriesByCategory"
     }, allEntries = true)
     public ProductResponse deleteProduct(Long productId) {
-        log.info("🗑️ Deleting product {} and clearing caches", productId);
         Product product = productRepo.findById(productId)
                 .orElseThrow(() -> new NotFoundException("Product not found"));
 
-        productRepo.delete(product);
+        if (product.getImages() != null) {
+            product.getImages().forEach(image -> {
+                if (image.getImageUrl() != null) {
+                    awsS3Service.deleteMedia(image.getImageUrl());
+                }
+            });
+        }
 
-        log.info("✅ Product deleted and caches cleared for productId: {}", productId);
+        productRepo.delete(product);
 
         return ProductResponse.builder()
                 .status(200)
@@ -691,9 +702,9 @@ public class ProductServiceImpl implements ProductService {
         }
 
         // Save product images
-        List<ProductImage> productImages = images.stream()
+        List<ProductImage> productImages = (images == null ? List.<MultipartFile>of() : images).stream()
                 .map(image -> {
-                    String imageUrl = awsS3Service.uploadMedia(image);
+                    String imageUrl = awsS3Service.uploadMedia(image, "products/images");
                     ProductImage productImage = new ProductImage();
                     productImage.setImageUrl(imageUrl);
                     productImage.setProduct(product);
@@ -793,13 +804,17 @@ public class ProductServiceImpl implements ProductService {
 
         // Update images if provided
         if (images != null && !images.isEmpty()) {
-            // Clear existing images
+            product.getImages().forEach(existingImage -> {
+                if (existingImage.getImageUrl() != null) {
+                    awsS3Service.deleteMedia(existingImage.getImageUrl());
+                }
+            });
+
             product.getImages().clear();
 
-            // Add new images
             List<ProductImage> productImages = images.stream()
                     .map(image -> {
-                        String imageUrl = awsS3Service.uploadMedia(image);  // changed
+                        String imageUrl = awsS3Service.uploadMedia(image, "products/images");
                         ProductImage productImage = new ProductImage();
                         productImage.setImageUrl(imageUrl);
                         productImage.setProduct(product);
@@ -809,6 +824,7 @@ public class ProductServiceImpl implements ProductService {
 
             product.getImages().addAll(productImages);
         }
+
         productRepo.save(product);
         return ProductResponse.builder()
                 .status(200)
@@ -847,7 +863,16 @@ public class ProductServiceImpl implements ProductService {
             throw new InvalidCredentialException("You are not authorized to delete this product.");
         }
 
+        if (product.getImages() != null) {
+            product.getImages().forEach(image -> {
+                if (image.getImageUrl() != null) {
+                    awsS3Service.deleteMedia(image.getImageUrl());
+                }
+            });
+        }
+
         productRepo.delete(product);
+
         return ProductResponse.builder()
                 .status(200)
                 .message("Product deleted successfully for company: " + company.getName())

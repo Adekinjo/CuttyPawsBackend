@@ -140,6 +140,13 @@ public class PetServiceImpl implements PetService {
             pet.setTags(request.getTags() != null ? new ArrayList<>(request.getTags()) : new ArrayList<>());
 
             if (request.getImages() != null && !request.getImages().isEmpty()) {
+
+                pet.getImages().forEach(existingImage -> {
+                    if (existingImage.getImageUrl() != null) {
+                        awsS3Service.deleteMedia(existingImage.getImageUrl());
+                    }
+                });
+
                 pet.getImages().clear();
 
                 List<PetImage> newImages = uploadPetImages(request, pet);
@@ -148,6 +155,8 @@ public class PetServiceImpl implements PetService {
                 if (!newImages.isEmpty()) {
                     int coverIndex = resolveCoverIndex(request.getCoverImageIndex(), newImages.size());
                     pet.setCoverImageUrl(newImages.get(coverIndex).getImageUrl());
+                } else {
+                    pet.setCoverImageUrl(null);
                 }
             }
 
@@ -188,6 +197,14 @@ public class PetServiceImpl implements PetService {
                         .message("You can only delete your own pet")
                         .timeStamp(LocalDateTime.now())
                         .build();
+            }
+
+            if (pet.getImages() != null) {
+                pet.getImages().forEach(image -> {
+                    if (image.getImageUrl() != null) {
+                        awsS3Service.deleteMedia(image.getImageUrl());
+                    }
+                });
             }
 
             petRepo.delete(pet);
@@ -320,7 +337,7 @@ public class PetServiceImpl implements PetService {
         }
 
         for (var file : request.getImages()) {
-            String url = awsS3Service.uploadMedia(file);
+            String url = awsS3Service.uploadMedia(file, "pets/images");
             images.add(
                     PetImage.builder()
                             .imageUrl(url)
