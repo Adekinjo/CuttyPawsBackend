@@ -5,6 +5,7 @@ import com.cuttypaws.entity.ServiceAdSubscription;
 import com.cuttypaws.entity.ServiceMedia;
 import com.cuttypaws.entity.ServiceProfile;
 import com.cuttypaws.entity.User;
+import com.cuttypaws.enums.MediaType;
 import com.cuttypaws.enums.ServiceStatus;
 import com.cuttypaws.enums.UserRole;
 import com.cuttypaws.exception.NotFoundException;
@@ -377,12 +378,20 @@ public class ServiceProviderServiceImpl implements ServiceProviderService {
     }
 
     @Override
+    @Transactional
     public UserResponse uploadMyServiceMedia(List<MultipartFile> files) {
 
         User user = getCurrentUser();
 
         ServiceProfile profile = serviceProfileRepo.findByUserId(user.getId())
                 .orElseThrow(() -> new RuntimeException("Service profile not found"));
+
+        if (files == null || files.isEmpty()) {
+            return UserResponse.builder()
+                    .status(400)
+                    .message("Please upload at least one image or video")
+                    .build();
+        }
 
         List<ServiceMediaDto> result = new ArrayList<>();
 
@@ -392,15 +401,27 @@ public class ServiceProviderServiceImpl implements ServiceProviderService {
 
         for (MultipartFile file : files) {
 
+            if (file == null || file.isEmpty()) {
+                continue;
+            }
+
             String contentType = file.getContentType();
 
-            com.cuttypaws.enums.MediaType type =
-                    contentType != null && contentType.startsWith("video")
-                            ? com.cuttypaws.enums.MediaType.VIDEO
-                            : com.cuttypaws.enums.MediaType.IMAGE;
+            if (contentType == null ||
+                    !(contentType.startsWith("image/") || contentType.startsWith("video/"))) {
+                throw new RuntimeException("Only image and video files are allowed");
+            }
 
-            String url = awsS3Service.uploadMedia(file, "service-media");
+            MediaType type =
+                    contentType.startsWith("video/")
+                            ? MediaType.VIDEO
+                            : MediaType.IMAGE;
 
+            String folder = type == MediaType.VIDEO
+                    ? "services/videos/original"
+                    : "services/images";
+
+            String url = awsS3Service.uploadMedia(file, folder);
             ServiceMedia media = ServiceMedia.builder()
                     .serviceProfile(profile)
                     .mediaType(type)
@@ -409,21 +430,22 @@ public class ServiceProviderServiceImpl implements ServiceProviderService {
                     .isCover(false)
                     .build();
 
-            serviceMediaRepo.save(media);
+            ServiceMedia saved = serviceMediaRepo.save(media);
 
             result.add(
                     ServiceMediaDto.builder()
-                            .id(media.getId())
-                            .mediaType(media.getMediaType().name())
-                            .mediaUrl(media.getMediaUrl())
-                            .isCover(media.getIsCover())
+                            .id(saved.getId())
+                            .mediaType(saved.getMediaType().name())
+                            .mediaUrl(saved.getMediaUrl())
+                            .isCover(saved.getIsCover())
+                            .serviceProfileId(profile.getId())
                             .build()
             );
         }
 
         return UserResponse.builder()
                 .status(200)
-                .message("Media uploaded")
+                .message("Service media uploaded successfully")
                 .serviceMediaList(result)
                 .build();
     }
