@@ -4,10 +4,12 @@ import com.cuttypaws.feed.dto.FeedResponseDto;
 import com.cuttypaws.feed.dto.VideoFeedPageResponse;
 import com.cuttypaws.feed.service.interf.FeedComposerService;
 import com.cuttypaws.feed.service.interf.VideoFeedService;
-import com.cuttypaws.security.CurrentUser;
+import com.cuttypaws.security.AuthUser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -24,11 +26,13 @@ public class FeedController {
 
     @GetMapping("/mixed")
     public ResponseEntity<FeedResponseDto> getMixedFeed(
-            @CurrentUser UUID currentUserId,
+            Authentication authentication,
             @RequestParam(required = false) LocalDateTime cursorCreatedAt,
             @RequestParam(required = false) Long cursorId,
-            @RequestParam(defaultValue = "12") int limit
+            @RequestParam(defaultValue = "8") int limit
     ) {
+        UUID currentUserId = extractCurrentUserId(authentication);
+
         return ResponseEntity.ok(
                 feedComposerService.getMixedFeed(currentUserId, cursorCreatedAt, cursorId, limit)
         );
@@ -36,13 +40,35 @@ public class FeedController {
 
     @GetMapping("/videos")
     public ResponseEntity<VideoFeedPageResponse> getVideoFeed(
-            @CurrentUser UUID currentUserId,
+            Authentication authentication,
             @RequestParam(required = false) LocalDateTime cursorCreatedAt,
             @RequestParam(required = false) Long cursorId,
             @RequestParam(defaultValue = "5") int limit
     ) {
+        UUID currentUserId = extractCurrentUserId(authentication);
+
         return ResponseEntity.ok(
                 videoFeedService.getVideoFeed(currentUserId, cursorCreatedAt, cursorId, limit)
         );
+    }
+
+    private UUID extractCurrentUserId(Authentication authentication) {
+        try {
+            if (authentication == null ||
+                    !authentication.isAuthenticated() ||
+                    authentication instanceof AnonymousAuthenticationToken) {
+                return null;
+            }
+
+            Object principal = authentication.getPrincipal();
+
+            if (principal instanceof AuthUser authUser && authUser.getUser() != null) {
+                return authUser.getUser().getId();
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract current user id for public feed request", e);
+        }
+
+        return null;
     }
 }

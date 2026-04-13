@@ -44,6 +44,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 uri.startsWith("/comments/") ||
                 uri.startsWith("/products/") ||
                 uri.startsWith("/feed/videos") ||
+                uri.startsWith("/feed/mixed") ||
                 uri.startsWith("/product/suggestions") ||
                 uri.startsWith("/product/search") ||
                 uri.startsWith("/category/get-all") ||

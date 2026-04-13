@@ -16,12 +16,6 @@ import java.util.List;
 @Component
 public class SecurityHeadersFilter extends OncePerRequestFilter {
 
-    /**
-     * ✅ Put YOUR real domains here.
-     * - Frontend: cuttypaws.com (and www)
-     * - Backend: api.cuttypaws.com (or your render url)
-     * - CDN/S3: if you serve images from S3/CloudFront, add it to IMG/CONNECT as needed
-     */
     private static final List<String> FRONTEND_ORIGINS = List.of(
             "https://cuttypaws.com",
             "https://www.cuttypaws.com"
@@ -31,26 +25,21 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
             "https://api.cuttypaws.com" ,
              "https://cuttypaws-backend.onrender.com" // example
     );
-
-    /**
-     * ✅ Allowed third-party payment providers
-     * IMPORTANT: ONLY domains (no query strings in CSP)
-     */
     private static final List<String> PAYMENT_SCRIPT_FRAME_ORIGINS = List.of(
-            "https://js.paystack.co",
-            "https://standard.paystack.co",
-            "https://checkout.flutterwave.com",
-            "https://monnify.com",
-            "https://remita.net",
+//            "https://js.paystack.co",
+//            "https://standard.paystack.co",
+//            "https://checkout.flutterwave.com",
+//            "https://monnify.com",
+//            "https://remita.net",
             "https://js.stripe.com",
             "https://checkout.stripe.com"
     );
 
     private static final List<String> PAYMENT_API_ORIGINS = List.of(
-            "https://api.paystack.co",
-            "https://api.flutterwave.com",
-            "https://api.monnify.com",
-            "https://login.remita.net",
+//            "https://api.paystack.co",
+//            "https://api.flutterwave.com",
+//            "https://api.monnify.com",
+//            "https://login.remita.net",
             "https://api.stripe.com"
     );
 
@@ -103,12 +92,6 @@ public class SecurityHeadersFilter extends OncePerRequestFilter {
         response.setHeader(HttpHeaders.SERVER, "CuttyPaws");
     }
 
-    /**
-     * ✅ Production CSP rules
-     * - "world accessible" means you do NOT restrict by geography. You only restrict by allowed origins.
-     * - Nonce-based script policy: no 'unsafe-inline'
-     * - Keep connect-src broad enough for your backend and websockets if you use them.
-     */
     private String buildCsp(HttpServletRequest request, String nonce) {
         boolean dev = isDevelopmentRequest(request);
 
