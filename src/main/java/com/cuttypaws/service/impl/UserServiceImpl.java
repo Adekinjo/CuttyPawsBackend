@@ -48,6 +48,7 @@ public class UserServiceImpl implements UserService {
     private final EmailService emailService;
     private final SecurityService securityService;
     private final RefreshTokenService refreshTokenService;
+    private final LoginHistoryService loginHistoryService;
 
     @Qualifier("tokenTaskScheduler")
     private final TaskScheduler taskScheduler;
@@ -68,6 +69,7 @@ public class UserServiceImpl implements UserService {
             EmailService emailService,
             SecurityService securityService,
             RefreshTokenService refreshTokenService,
+            LoginHistoryService loginHistoryService,
             @Qualifier("tokenTaskScheduler") TaskScheduler taskScheduler,
             RateLimitService rateLimitService,
             InputSanitizer inputSanitizer,
@@ -83,6 +85,7 @@ public class UserServiceImpl implements UserService {
         this.emailService = emailService;
         this.securityService = securityService;
         this.refreshTokenService = refreshTokenService;
+        this.loginHistoryService = loginHistoryService;
         this.taskScheduler = taskScheduler;
         this.rateLimitService = rateLimitService;
         this.inputSanitizer = inputSanitizer;
@@ -163,7 +166,7 @@ public class UserServiceImpl implements UserService {
             performSecurityChecks(loginRequest, clientIP);
 
             // 2. Authenticate user
-            User user = authenticateUser(loginRequest, clientIP);
+            User user = authenticateUser(loginRequest, clientIP, request);
 
             // 3. Handle device verification
             String deviceId = deviceAuthService.generateDeviceId(request);
@@ -299,6 +302,7 @@ public class UserServiceImpl implements UserService {
                 rememberMe,
                 jwtUtils.getExpirationAsLocalDateTime(refreshToken)
         );
+        loginHistoryService.saveSuccess(user, request);
 
         UserDto userDto = userMapper.mapUserToDtoBasic(user);
 
@@ -712,28 +716,53 @@ public class UserServiceImpl implements UserService {
         rateLimitService.recordAttempt(loginRequest.getEmail(), "LOGIN");
     }
 
-    private User authenticateUser(LoginRequest loginRequest, String clientIP) {
-        User user = userRepo.findByEmail(loginRequest.getEmail())
+    private User authenticateUser(LoginRequest loginRequest, String clientIP, HttpServletRequest request) {
+        String email = loginRequest.getEmail() != null ? loginRequest.getEmail().trim().toLowerCase() : null;
+
+        User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> {
-                    securityService.logSecurityEvent("LOGIN_FAILED",
-                            "Email not found", clientIP, loginRequest.getEmail());
-                    return new NotFoundException("Invalid email or password");
+                    loginHistoryService.saveFailed(email, "Email not found", request);
+                    securityService.logSecurityEvent("LOGIN_FAILED", "Email not found", clientIP, email);
+                    return new InvalidCredentialException("Invalid email or password");
                 });
 
-        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
-            securityService.logSecurityEvent("LOGIN_FAILED",
-                    "Wrong password", clientIP, loginRequest.getEmail());
-            throw new InvalidCredentialException("Invalid email or password");
+        if (Boolean.TRUE.equals(user.getIsBlocked())) {
+            loginHistoryService.saveFailed(email, "Account blocked", request);
+            securityService.logSecurityEvent("LOGIN_BLOCKED", "Blocked user attempted login", clientIP, email);
+            throw new InvalidCredentialException("Your account has been blocked");
         }
 
-        if (Boolean.TRUE.equals(user.getIsBlocked())) {
-            securityService.logSecurityEvent("LOGIN_BLOCKED_USER",
-                    "Blocked user attempted login", clientIP, loginRequest.getEmail());
-            throw new InvalidCredentialException("Your account has been blocked");
+        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+            loginHistoryService.saveFailed(email, "Wrong password", request);
+            securityService.logSecurityEvent("LOGIN_FAILED", "Wrong password", clientIP, email);
+            throw new InvalidCredentialException("Invalid email or password");
         }
 
         return user;
     }
+
+//    private User authenticateUser(LoginRequest loginRequest, String clientIP, HttpServletRequest request) {
+//        User user = userRepo.findByEmail(loginRequest.getEmail())
+//                .orElseThrow(() -> {
+//                    securityService.logSecurityEvent("LOGIN_FAILED",
+//                            "Email not found", clientIP, loginRequest.getEmail());
+//                    return new NotFoundException("Invalid email or password");
+//                });
+//
+//        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
+//            securityService.logSecurityEvent("LOGIN_FAILED",
+//                    "Wrong password", clientIP, loginRequest.getEmail());
+//            throw new InvalidCredentialException("Invalid email or password");
+//        }
+//
+//        if (Boolean.TRUE.equals(user.getIsBlocked())) {
+//            securityService.logSecurityEvent("LOGIN_BLOCKED_USER",
+//                    "Blocked user attempted login", clientIP, loginRequest.getEmail());
+//            throw new InvalidCredentialException("Your account has been blocked");
+//        }
+//
+//        return user;
+//    }
 
     private void handleLoginError(Exception e, String clientIP, String email) {
         if (!(e.getMessage().contains("verification") || e.getMessage().contains("code"))) {

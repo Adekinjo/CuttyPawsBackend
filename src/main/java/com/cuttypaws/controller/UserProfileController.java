@@ -1,6 +1,8 @@
 package com.cuttypaws.controller;
 
+import com.cuttypaws.dto.LoginHistoryDto;
 import com.cuttypaws.response.UserResponse;
+import com.cuttypaws.service.interf.LoginHistoryService;
 import com.cuttypaws.service.interf.UserProfileService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -17,12 +20,18 @@ import java.util.UUID;
 public class UserProfileController {
 
     private final UserProfileService userProfileService;
+    private final LoginHistoryService loginHistoryService;
 
     @GetMapping("/{userId}/profile")
     public ResponseEntity<UserResponse> getUserProfile(@PathVariable UUID userId) {
         log.info("🎯 GET USER PROFILE REQUEST - User ID: {}", userId);
         UserResponse response = userProfileService.getUserProfile(userId);
         return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
+    @GetMapping("/login-history")
+    public ResponseEntity<List<LoginHistoryDto>> getMyLoginHistory() {
+        return ResponseEntity.ok(loginHistoryService.getMyLoginHistory());
     }
 
     @GetMapping("/{userId}/posts")

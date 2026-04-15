@@ -106,6 +106,7 @@ public class SecurityConfig {
                                 "/user/update-profile-image",
                                 "/user/update-cover-image",
                                 "/user/update",
+                                "/users/login-history",
                                 "/order/create",
                                 "/payment/**",
                                 "/service-booking-reports/**",
