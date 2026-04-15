@@ -1,8 +1,7 @@
-
-
 package com.cuttypaws.security;
 
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,80 +27,73 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final CustomUserDetailsService customUserDetailsService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        String uri = request.getRequestURI();
-        String method = request.getMethod();
+        String token = jwtUtils.extractJwtFromRequest(request);
 
-        if (uri.startsWith("/auth/") ||
-                uri.equals("/post/get-all") ||
-                uri.equals("/ai/chat") ||
-                uri.equals("/ai/search/parse") ||
-                uri.equals("/ai/pet-health") ||
-                uri.equals("/ai/pet-health/image") ||
-                uri.startsWith("/post/get-all/") ||
-                uri.startsWith("/comments/") ||
-                uri.startsWith("/products/") ||
-                uri.startsWith("/feed/videos") ||
-                uri.startsWith("/feed/mixed") ||
-                uri.startsWith("/product/suggestions") ||
-                uri.startsWith("/product/search") ||
-                uri.startsWith("/category/get-all") ||
-                uri.startsWith("/search") ||
-                uri.startsWith("/ws/") ||
-                uri.startsWith("/topic/") ||
-                uri.startsWith("/queue/") ||
-                uri.equals("/favicon.ico") ||
-                uri.startsWith("/error") ||
-                uri.startsWith("/webhook/stripe") ||
-                uri.startsWith("/services/public/") ||
-                ("GET".equalsIgnoreCase(method) && uri.startsWith("/service-reviews/")) ||
-                uri.startsWith("/products/filter-by-name-and-category")) {
+        // No token -> let Spring Security decide based on endpoint rules
+        if (!StringUtils.hasText(token)) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        if ("OPTIONS".equalsIgnoreCase(method)) {
+        // Already authenticated -> continue
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = getTokenFromRequest(request);
-        if (token != null) {
-            try {
-                String username = jwtUtils.getUsernameFromToken(token);
-                UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
-
-                if (StringUtils.hasText(username) && jwtUtils.isTokenValid(token, userDetails)) {
-                    UsernamePasswordAuthenticationToken authenticationToken =
-                            new UsernamePasswordAuthenticationToken(
-                                    userDetails, null, userDetails.getAuthorities()
-                            );
-                    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-                }
-            } catch (ExpiredJwtException e) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"status\":401,\"message\":\"Token expired. Please log in again.\"}");
-                return;
-            } catch (Exception e) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.setContentType("application/json");
-                response.getWriter().write("{\"status\":401,\"message\":\"Invalid token. Please log in again.\"}");
+        try {
+            if (!jwtUtils.isAccessToken(token)) {
+                writeUnauthorized(response, "Invalid token type. Access token required.");
                 return;
             }
-        }
 
-        filterChain.doFilter(request, response);
+            String username = jwtUtils.getUsernameFromToken(token);
+            if (!StringUtils.hasText(username)) {
+                writeUnauthorized(response, "Invalid token.");
+                return;
+            }
+
+            UserDetails userDetails = customUserDetailsService.loadUserByUsername(username);
+
+            if (!jwtUtils.isAccessTokenValid(token, userDetails)) {
+                writeUnauthorized(response, "Invalid token. Please log in again.");
+                return;
+            }
+
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+
+            authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            filterChain.doFilter(request, response);
+
+        } catch (ExpiredJwtException e) {
+            writeUnauthorized(response, "Token expired. Please log in again.");
+        } catch (JwtException | IllegalArgumentException e) {
+            writeUnauthorized(response, "Invalid token. Please log in again.");
+        } catch (Exception e) {
+            log.error("Unexpected authentication error", e);
+            writeUnauthorized(response, "Authentication failed. Please log in again.");
+        }
     }
 
-    private String getTokenFromRequest(HttpServletRequest request) {
-        String token = request.getHeader("Authorization");
-        if (StringUtils.hasText(token) && StringUtils.startsWithIgnoreCase(token, "Bearer ")) {
-            return token.substring(7);
-        }
-        return null;
+    private void writeUnauthorized(HttpServletResponse response, String message) throws IOException {
+        SecurityContextHolder.clearContext();
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter().write("{\"status\":401,\"message\":\"" + escapeJson(message) + "\"}");
+    }
+
+    private String escapeJson(String value) {
+        return value.replace("\"", "\\\"");
     }
 }

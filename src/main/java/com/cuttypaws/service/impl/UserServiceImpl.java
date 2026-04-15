@@ -5,7 +5,6 @@ import com.cuttypaws.entity.*;
 import com.cuttypaws.enums.UserRole;
 import com.cuttypaws.exception.*;
 import com.cuttypaws.mapper.ProductMapper;
-import com.cuttypaws.mapper.ServiceProviderMapper;
 import com.cuttypaws.mapper.UserMapper;
 import com.cuttypaws.repository.*;
 import com.cuttypaws.response.UserResponse;
@@ -48,6 +47,7 @@ public class UserServiceImpl implements UserService {
     private final PasswordResetTokenRepo passwordResetTokenRepo;
     private final EmailService emailService;
     private final SecurityService securityService;
+    private final RefreshTokenService refreshTokenService;
 
     @Qualifier("tokenTaskScheduler")
     private final TaskScheduler taskScheduler;
@@ -67,6 +67,7 @@ public class UserServiceImpl implements UserService {
             PasswordResetTokenRepo passwordResetTokenRepo,
             EmailService emailService,
             SecurityService securityService,
+            RefreshTokenService refreshTokenService,
             @Qualifier("tokenTaskScheduler") TaskScheduler taskScheduler,
             RateLimitService rateLimitService,
             InputSanitizer inputSanitizer,
@@ -81,6 +82,7 @@ public class UserServiceImpl implements UserService {
         this.passwordResetTokenRepo = passwordResetTokenRepo;
         this.emailService = emailService;
         this.securityService = securityService;
+        this.refreshTokenService = refreshTokenService;
         this.taskScheduler = taskScheduler;
         this.rateLimitService = rateLimitService;
         this.inputSanitizer = inputSanitizer;
@@ -220,30 +222,53 @@ public class UserServiceImpl implements UserService {
 
     // In your refreshToken method, fix the token validation:
     @Override
+    @Transactional
     public UserResponse refreshToken(String refreshToken) {
         try {
             log.info("Refreshing token");
 
-            // ✅ FIX: Use the overloaded method without UserDetails for refresh tokens
-            if (!jwtUtils.isTokenValid(refreshToken)) {
+            // 1. Basic JWT checks
+            if (!jwtUtils.isRefreshToken(refreshToken) || !jwtUtils.isTokenValid(refreshToken)) {
                 throw new InvalidCredentialException("Invalid or expired refresh token");
             }
 
-            String email = jwtUtils.getUsernameFromToken(refreshToken);
-            User user = userRepo.findByEmail(email)
-                    .orElseThrow(() -> new NotFoundException("User not found"));
+            // 2. DB lookup
+            RefreshToken storedToken = refreshTokenService.getByToken(refreshToken);
 
-            // Check if this was a "remember me" token
-            Boolean rememberMe = jwtUtils.isRememberMeToken(refreshToken);
-            if (rememberMe == null) {
-                rememberMe = false;
+            // 3. Must still be active
+            if (!storedToken.isActive()) {
+                // Optional stronger protection:
+                // token reuse detected -> revoke all active sessions for this user
+                refreshTokenService.revokeAllActiveTokens(storedToken.getUser());
+                throw new InvalidCredentialException("Refresh token is revoked or expired");
             }
 
-            // Generate new tokens
+            User user = storedToken.getUser();
+            if (user == null) {
+                throw new NotFoundException("User not found");
+            }
+
+            if (Boolean.TRUE.equals(user.getIsBlocked())) {
+                throw new InvalidCredentialException("Your account has been blocked");
+            }
+
+            Boolean rememberMe = storedToken.getRememberMe() != null && storedToken.getRememberMe();
+
+            // 4. Generate new tokens
             String newAccessToken = jwtUtils.generateAccessToken(user);
             String newRefreshToken = jwtUtils.generateRefreshToken(user, rememberMe);
 
-            log.info("Token refreshed successfully for user: {} with rememberMe: {}", email, rememberMe);
+            // 5. Revoke old refresh token and save new one
+            refreshTokenService.revokeToken(storedToken, newRefreshToken);
+
+            refreshTokenService.saveToken(
+                    user,
+                    newRefreshToken,
+                    rememberMe,
+                    jwtUtils.getExpirationAsLocalDateTime(newRefreshToken)
+            );
+
+            log.info("Token refreshed successfully for user: {}", user.getEmail());
 
             return UserResponse.builder()
                     .status(200)
@@ -260,18 +285,26 @@ public class UserServiceImpl implements UserService {
     }
 
     private UserResponse completeLogin(User user, String clientIP, HttpServletRequest request, boolean rememberMe) {
-        // Send login notification
         sendLoginNotification(user, clientIP, request);
 
-        // Generate tokens
         String accessToken = jwtUtils.generateAccessToken(user);
         String refreshToken = jwtUtils.generateRefreshToken(user, rememberMe);
+
+        // Single-session behavior: revoke any previous active refresh tokens
+        refreshTokenService.revokeAllActiveTokens(user);
+
+        refreshTokenService.saveToken(
+                user,
+                refreshToken,
+                rememberMe,
+                jwtUtils.getExpirationAsLocalDateTime(refreshToken)
+        );
+
         UserDto userDto = userMapper.mapUserToDtoBasic(user);
 
-        // Log security event
         securityService.logSecurityEvent("LOGIN_SUCCESS", "User logged in successfully", clientIP, user.getEmail());
 
-        log.info("Login successful for user: {}", user.getEmail(), rememberMe);
+        log.info("Login successful for user: {} rememberMe={}", user.getEmail(), rememberMe);
 
         return UserResponse.builder()
                 .status(200)
@@ -583,6 +616,13 @@ public class UserServiceImpl implements UserService {
         log.info("Expired tokens cleanup completed at: {}", now);
     }
 
+    @Scheduled(fixedRate = 3600000) // every hour
+    @Transactional
+    public void cleanupRefreshTokens() {
+        refreshTokenService.deleteExpiredAndRevokedTokens();
+        log.info("Expired/revoked refresh tokens cleanup completed");
+    }
+
 
     public void scheduleTokenDeletion(Long tokenId) {
         Instant runAt = Instant.now().plusSeconds(300); // 5 minutes
@@ -591,8 +631,6 @@ public class UserServiceImpl implements UserService {
                 passwordResetTokenRepo.deleteById(tokenId);
                 log.info("Used token {} deleted", tokenId);
             } catch (Exception ex) {
-                // Do NOT throw; we don't want to impact user flow.
-                // Hourly cleanup will remove it later.
                 log.warn("Failed to delete used token {} (will be cleaned up later): {}", tokenId, ex.getMessage());
             }
         }, runAt);

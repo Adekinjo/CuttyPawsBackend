@@ -42,7 +42,7 @@ public class CurrentUserResolver implements HandlerMethodArgumentResolver {
         UUID userId = jwtUtils.getUserIdFromToken(token);
 
         if (userId == null) {
-            throw new RuntimeException("Unauthorized: Invalid token");
+            throw new AuthenticationServiceException("Unauthorized: Invalid token");
         }
         return userId;
     }

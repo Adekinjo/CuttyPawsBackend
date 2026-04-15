@@ -3,6 +3,7 @@ package com.cuttypaws.entity;
 import com.cuttypaws.enums.UserRole;
 import jakarta.annotation.Resource;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import org.hibernate.annotations.UuidGenerator;
@@ -33,6 +34,7 @@ public class User {
 
     @NotBlank(message = "Email is required")
     @Column(nullable = false, unique = true)
+    @Email
     private String email;
 
     @Column(name = "profile_image_url")

@@ -32,8 +32,10 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
-                .cors(Customizer.withDefaults()) // ✅ uses CorsConfigurationSource from CorsConfig
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .cors(Customizer.withDefaults())
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
@@ -48,20 +50,30 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(req -> req
 
-                        // allow preflight
+                        // Preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // websocket
+                        // Public websocket handshake/topics if intentionally public
                         .requestMatchers("/ws/**", "/topic/**", "/queue/**").permitAll()
 
-                        // public endpoints
+                        // ---- PUBLIC AUTH ENDPOINTS ONLY ----
                         .requestMatchers(
-                                "/auth/**",
+                                "/auth/login",
+                                "/auth/register",
+                                "/auth/refresh-token",
+                                "/auth/verify-code",
+                                "/auth/resend-verification",
+                                "/auth/request-password-reset",
+                                "/auth/reset-password"
+                        ).permitAll()
+
+                        // ---- PUBLIC WEBHOOKS ----
+                        .requestMatchers("/webhook/stripe").permitAll()
+
+                        // ---- PUBLIC READ ENDPOINTS ----
+                        .requestMatchers(HttpMethod.GET,
                                 "/post/get-all",
-                                "/ai/**",
-                                "/webhook/stripe",
                                 "/post/get-all/**",
-                                "/likes/**",
                                 "/comments/**",
                                 "/deals/**",
                                 "/reviews/**",
@@ -69,60 +81,56 @@ public class SecurityConfig {
                                 "/sub-category/**",
                                 "/feed/**",
                                 "/product/**",
+                                "/products/**",
+                                "/product/suggestions/**",
+                                "/product/search/**",
+                                "/products/filter-by-name-and-category/**",
                                 "/search/**",
                                 "/newsletter/**",
-                                "/services/public/**"
+                                "/services/public/**",
+                                "/service-reviews/**",
+                                "/ai/**"
                         ).permitAll()
 
-                        // public GET service reviews
-                        .requestMatchers(HttpMethod.GET, "/service-reviews/**").permitAll()
-
-                        // admin service moderation endpoints
-                        .requestMatchers("/services/admin/**").hasAuthority("ROLE_ADMIN")
-
-                        // authenticated service provider endpoints
+                        // ---- AUTHENTICATED USER ENDPOINTS ----
                         .requestMatchers(
-                                "/services/my-profile",
-                                "/services/my-dashboard",
-                                "/service-ads/**"
-                        ).authenticated()
-
-                        // authenticated review creation/update
-                        .requestMatchers(HttpMethod.POST, "/service-reviews/**").authenticated()
-
-                        // authenticated general user endpoints
-                        .requestMatchers(
+                                "/auth/update-user-profile",
                                 "/post/create",
                                 "/post/my-posts",
                                 "/follow/**",
-                                "/likes/{postId}/react",
-                                "/comments/create/",
+                                "/likes/*/react",
+                                "/comments/create",
                                 "/notifications/**",
                                 "/pet/**",
                                 "/user/my-info",
                                 "/user/update-profile-image",
                                 "/user/update-cover-image",
                                 "/user/update",
-                                "/order/**",
+                                "/order/create",
                                 "/payment/**",
                                 "/service-booking-reports/**",
-                                "/order/create",
-                                "/auth/update-user-profile"
+                                "/services/my-profile",
+                                "/services/my-dashboard",
+                                "/service-ads/**"
                         ).authenticated()
 
-                        // role based
+                        .requestMatchers(HttpMethod.POST, "/service-reviews/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/order/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/order/**").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/order/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/order/**").authenticated()
+
+                        // ---- ROLE-BASED ENDPOINTS ----
+                        .requestMatchers("/services/admin/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/admin/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers("/customer-support/**")
                         .hasAnyAuthority("ROLE_CUSTOMER_SUPPORT", "ROLE_ADMIN")
                         .requestMatchers("/company/**")
                         .hasAnyAuthority("ROLE_SELLER", "ROLE_ADMIN", "ROLE_CUSTOMER_SUPPORT")
-                        .requestMatchers("/order/**")
-                        .hasAnyAuthority("ROLE_ADMIN", "ROLE_USER", "ROLE_CUSTOMER_SUPPORT", "ROLE_SELLER")
 
                         .anyRequest().authenticated()
                 )
 
-                // Filters
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(securityFilter, JwtAuthFilter.class)
                 .addFilterAfter(securityHeadersFilter, SecurityFilter.class);

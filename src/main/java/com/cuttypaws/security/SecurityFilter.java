@@ -19,97 +19,119 @@ import java.time.Duration;
 public class SecurityFilter extends OncePerRequestFilter {
 
     private final SecurityService securityService;
-    private final RedisRateLimitService rateLimitService;
     private final RedisRateLimitService redisRateLimitService;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
         String clientIP = securityService.getClientIP(request);
         String path = request.getRequestURI();
+        String method = request.getMethod();
+        String currentUserEmail = getCurrentUserEmail();
 
-        // 1) Blocked IP check (keep yours for now)
+        // 1) Hard block
         if (securityService.isIpBlocked(clientIP)) {
             securityService.logSecurityEvent(
                     "BLOCKED_IP_ACCESS",
                     "Blocked IP attempted to access: " + path,
                     clientIP,
-                    getCurrentUserEmail()
+                    currentUserEmail
             );
-            response.sendError(403, "IP address blocked");
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "IP address blocked");
             return;
         }
 
-        // 2) Rate-limit sensitive endpoints (production ready via Redis)
-        if (path.equals("/auth/login")) {
-            boolean allowed = rateLimitService.allow("login:ip:" + clientIP, 8, Duration.ofMinutes(10));
+        // 2) Rate-limit login
+        if ("/auth/login".equals(path) && "POST".equalsIgnoreCase(method)) {
+            boolean allowed = redisRateLimitService.allow("login:ip:" + clientIP, 8, Duration.ofMinutes(10));
             if (!allowed) {
-                securityService.logSecurityEvent("RATE_LIMIT",
+                securityService.logSecurityEvent(
+                        "RATE_LIMIT_LOGIN",
                         "Too many login attempts from IP",
                         clientIP,
-                        getCurrentUserEmail());
+                        currentUserEmail
+                );
                 response.sendError(429, "Too many login attempts. Try again later.");
                 return;
             }
         }
 
-        if (path.equals("/auth/register")) {
-            boolean allowed = rateLimitService.allow("register:ip:" + clientIP, 5, Duration.ofHours(1));
+        // 3) Rate-limit registration
+        if ("/auth/register".equals(path) && "POST".equalsIgnoreCase(method)) {
+            boolean allowed = redisRateLimitService.allow("register:ip:" + clientIP, 5, Duration.ofHours(1));
             if (!allowed) {
-                securityService.logSecurityEvent("RATE_LIMIT",
+                securityService.logSecurityEvent(
+                        "RATE_LIMIT_REGISTER",
                         "Too many registrations from IP",
                         clientIP,
-                        "unknown");
+                        currentUserEmail
+                );
                 response.sendError(429, "Too many registration attempts. Try again later.");
                 return;
             }
         }
 
-        if (path.startsWith("/service-reviews/") && "POST".equalsIgnoreCase(request.getMethod())) {
-            String userEmail = null;
+        // 4) Rate-limit password reset
+        if ("/auth/request-password-reset".equals(path) && "POST".equalsIgnoreCase(method)) {
+            boolean allowedByIp = redisRateLimitService.allow("pwdreset:ip:" + clientIP, 5, Duration.ofMinutes(30));
+            boolean allowedByUser = currentUserEmail.equals("unknown")
+                    || redisRateLimitService.allow("pwdreset:user:" + currentUserEmail, 3, Duration.ofMinutes(30));
 
-            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-            if (auth != null && auth.isAuthenticated()) {
-                userEmail = auth.getName();
+            if (!allowedByIp || !allowedByUser) {
+                securityService.logSecurityEvent(
+                        "RATE_LIMIT_PASSWORD_RESET",
+                        "Too many password reset attempts",
+                        clientIP,
+                        currentUserEmail
+                );
+                response.sendError(429, "Too many password reset attempts. Try again later.");
+                return;
             }
+        }
 
-            boolean allowedByIp = redisRateLimitService.allow(
-                    "review:ip:" + clientIP,
-                    20,
-                    java.time.Duration.ofHours(1)
-            );
+        // 5) Rate-limit review submissions
+        if (path.startsWith("/service-reviews/") && "POST".equalsIgnoreCase(method)) {
+            boolean allowedByIp = redisRateLimitService.allow("review:ip:" + clientIP, 20, Duration.ofHours(1));
 
             boolean allowedByUser = true;
-            if (userEmail != null) {
-                allowedByUser = redisRateLimitService.allow(
-                        "review:user:" + userEmail,
-                        10,
-                        java.time.Duration.ofHours(1)
-                );
+            if (!"unknown".equals(currentUserEmail)) {
+                allowedByUser = redisRateLimitService.allow("review:user:" + currentUserEmail, 10, Duration.ofHours(1));
             }
 
             if (!allowedByIp || !allowedByUser) {
+                securityService.logSecurityEvent(
+                        "RATE_LIMIT_REVIEW",
+                        "Too many review submissions",
+                        clientIP,
+                        currentUserEmail
+                );
                 response.sendError(429, "Too many review submissions. Try again later.");
                 return;
             }
         }
 
-        // 3) Optional: keep your malicious pattern checks OR remove later
+        // 6) Suspicious URL pattern detection
         String queryString = request.getQueryString();
         if (securityService.isMaliciousInput(queryString)) {
-            securityService.logSecurityEvent("MALICIOUS_URL",
-                    "Malicious input in URL: " + queryString,
+            securityService.logSecurityEvent(
+                    "MALICIOUS_URL",
+                    "Suspicious input detected in query string",
                     clientIP,
-                    getCurrentUserEmail());
+                    currentUserEmail
+            );
         }
 
+        // 7) Suspicious User-Agent detection
         String userAgent = request.getHeader("User-Agent");
         if (securityService.isMaliciousInput(userAgent)) {
-            securityService.logSecurityEvent("MALICIOUS_USER_AGENT",
-                    "Malicious User-Agent: " + userAgent,
+            securityService.logSecurityEvent(
+                    "MALICIOUS_USER_AGENT",
+                    "Suspicious User-Agent detected",
                     clientIP,
-                    getCurrentUserEmail());
+                    currentUserEmail
+            );
         }
 
         filterChain.doFilter(request, response);
@@ -118,26 +140,26 @@ public class SecurityFilter extends OncePerRequestFilter {
     private String getCurrentUserEmail() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            if (authentication != null && authentication.isAuthenticated() &&
-                    !(authentication instanceof AnonymousAuthenticationToken)) {
+            if (authentication != null
+                    && authentication.isAuthenticated()
+                    && !(authentication instanceof AnonymousAuthenticationToken)) {
                 return authentication.getName();
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
         return "unknown";
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
+        String method = request.getMethod();
 
-        // Always skip preflight
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            return true;
+        }
 
-        // Skip public endpoints
-        if (path.startsWith("/auth/")) return true;
-        if (path.startsWith("/error")) return true;
-
-        // Skip static
+        // Skip only static assets and common framework files
         return path.startsWith("/css/")
                 || path.startsWith("/js/")
                 || path.startsWith("/images/")
@@ -149,6 +171,4 @@ public class SecurityFilter extends OncePerRequestFilter {
                 || path.endsWith(".webp")
                 || path.endsWith(".svg");
     }
-
-
 }
