@@ -1,17 +1,11 @@
 package com.cuttypaws.service.impl;
 
 import com.cuttypaws.dto.PaymentSheetRequest;
-import com.cuttypaws.entity.Payment;
-import com.cuttypaws.entity.ServiceAdSubscription;
-import com.cuttypaws.entity.ServiceBooking;
-import com.cuttypaws.entity.User;
+import com.cuttypaws.entity.*;
 import com.cuttypaws.enums.PaymentProvider;
 import com.cuttypaws.enums.PaymentPurpose;
 import com.cuttypaws.enums.PaymentStatus;
-import com.cuttypaws.repository.PaymentRepo;
-import com.cuttypaws.repository.ServiceAdSubscriptionRepo;
-import com.cuttypaws.repository.ServiceBookingRepo;
-import com.cuttypaws.repository.UserRepo;
+import com.cuttypaws.repository.*;
 import com.cuttypaws.response.PaymentSheetResponse;
 import com.cuttypaws.service.interf.PaymentService;
 import lombok.RequiredArgsConstructor;
@@ -33,88 +27,105 @@ public class PaymentServiceImpl implements PaymentService {
     private final ServiceAdSubscriptionRepo serviceAdSubscriptionRepo;
     private final ServiceBookingRepo serviceBookingRepo;
     private final StripePaymentSheetService stripePaymentSheetService;
+    private final CheckoutSessionRepo checkoutSessionRepo;
 
     @Override
     @Transactional
     public PaymentSheetResponse initializePaymentSheet(PaymentSheetRequest request) {
         try {
-            if (request.getAmount() == null || request.getAmount().signum() <= 0) {
-                return PaymentSheetResponse.builder()
-                        .status(400)
-                        .message("Invalid amount")
-                        .build();
-            }
-
-            if (request.getEmail() == null || request.getEmail().isBlank()) {
-                return PaymentSheetResponse.builder()
-                        .status(400)
-                        .message("Email is required")
-                        .build();
-            }
-
-            if (request.getUserId() == null) {
-                return PaymentSheetResponse.builder()
-                        .status(400)
-                        .message("User ID is required")
-                        .build();
-            }
-
-            User user = userRepo.findById(request.getUserId())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
-
             PaymentPurpose purpose = request.getPaymentPurpose() == null
                     ? PaymentPurpose.ORDER
                     : request.getPaymentPurpose();
 
-            String platform = request.getPlatform() == null
+            String platform = request.getPlatform() == null || request.getPlatform().isBlank()
                     ? "WEB"
                     : request.getPlatform().trim().toUpperCase();
 
             Payment payment = new Payment();
-            payment.setAmount(request.getAmount().setScale(2, RoundingMode.HALF_UP));
-            payment.setEmail(request.getEmail());
-            payment.setCurrency(
-                    request.getCurrency() == null || request.getCurrency().isBlank()
-                            ? "USD"
-                            : request.getCurrency().toUpperCase()
-            );
             payment.setProvider(PaymentProvider.STRIPE);
             payment.setMethod("PAYMENT_SHEET");
             payment.setReference(buildReference(purpose));
-            payment.setPaymentIntentId(payment.getPaymentIntentId());
             payment.setStatus(PaymentStatus.PENDING);
             payment.setPaymentPurpose(purpose);
-            payment.setUser(user);
             payment.setTransactionId(UUID.randomUUID().toString());
 
-            if (purpose == PaymentPurpose.SERVICE_AD) {
-                if (request.getServiceAdSubscriptionId() == null) {
-                    return PaymentSheetResponse.builder()
-                            .status(400)
-                            .message("serviceAdSubscriptionId is required for SERVICE_AD")
-                            .build();
+            User user;
+
+            switch (purpose) {
+                case ORDER -> {
+                    if (request.getCheckoutSessionId() == null) {
+                        return PaymentSheetResponse.builder()
+                                .status(400)
+                                .message("checkoutSessionId is required for ORDER payment")
+                                .build();
+                    }
+
+                    CheckoutSession checkoutSession = checkoutSessionRepo.findById(request.getCheckoutSessionId())
+                            .orElseThrow(() -> new RuntimeException("Checkout session not found"));
+
+                    if (checkoutSession.getExpiresAt() != null &&
+                            checkoutSession.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+                        return PaymentSheetResponse.builder()
+                                .status(400)
+                                .message("Checkout session has expired")
+                                .build();
+                    }
+
+                    user = checkoutSession.getUser();
+
+                    payment.setAmount(checkoutSession.getTotalAmount());
+                    payment.setEmail(user.getEmail());
+                    payment.setCurrency(checkoutSession.getCurrency());
+                    payment.setUser(user);
+                    payment.setCheckoutSession(checkoutSession);
                 }
 
-                ServiceAdSubscription subscription = serviceAdSubscriptionRepo
-                        .findById(request.getServiceAdSubscriptionId())
-                        .orElseThrow(() -> new RuntimeException("Service ad subscription not found"));
+                case SERVICE_AD -> {
+                    if (request.getServiceAdSubscriptionId() == null) {
+                        return PaymentSheetResponse.builder()
+                                .status(400)
+                                .message("serviceAdSubscriptionId is required for SERVICE_AD")
+                                .build();
+                    }
 
-                payment.setServiceAdSubscription(subscription);
-            }
+                    ServiceAdSubscription subscription = serviceAdSubscriptionRepo.findById(request.getServiceAdSubscriptionId())
+                            .orElseThrow(() -> new RuntimeException("Service ad subscription not found"));
 
-            if (purpose == PaymentPurpose.SERVICE_BOOKING) {
-                if (request.getServiceBookingId() == null) {
-                    return PaymentSheetResponse.builder()
-                            .status(400)
-                            .message("serviceBookingId is required for SERVICE_BOOKING")
-                            .build();
+                    user = subscription.getUser();
+
+                    payment.setAmount(subscription.getAmount().setScale(2, java.math.RoundingMode.HALF_UP));
+                    payment.setEmail(user.getEmail());
+                    payment.setCurrency("USD");
+                    payment.setUser(user);
+                    payment.setServiceAdSubscription(subscription);
                 }
 
-                ServiceBooking booking = serviceBookingRepo
-                        .findById(request.getServiceBookingId())
-                        .orElseThrow(() -> new RuntimeException("Service booking not found"));
+                case SERVICE_BOOKING -> {
+                    if (request.getServiceBookingId() == null) {
+                        return PaymentSheetResponse.builder()
+                                .status(400)
+                                .message("serviceBookingId is required for SERVICE_BOOKING")
+                                .build();
+                    }
 
-                payment.setServiceBooking(booking);
+                    ServiceBooking booking = serviceBookingRepo.findById(request.getServiceBookingId())
+                            .orElseThrow(() -> new RuntimeException("Service booking not found"));
+
+                    user = booking.getCustomer();
+
+                    payment.setAmount(booking.getAmount().setScale(2, java.math.RoundingMode.HALF_UP));
+                    payment.setEmail(user.getEmail());
+                    payment.setCurrency("USD");
+                    payment.setUser(user);
+                    payment.setServiceBooking(booking);
+                }
+
+                default -> {
+                    return PaymentSheetResponse.builder()
+                            .status(400)
+                            .message("Unsupported payment purpose")
+                            .build();
+                }
             }
 
             Payment savedPayment = paymentRepo.save(payment);
@@ -122,13 +133,14 @@ public class PaymentServiceImpl implements PaymentService {
             StripePaymentSheetService.StripePaymentSheetInitResult stripeResult;
 
             if ("MOBILE".equals(platform)) {
-                stripeResult = stripePaymentSheetService.createMobilePayment(savedPayment, user);
+                stripeResult = stripePaymentSheetService.createMobilePayment(savedPayment, savedPayment.getUser());
 
                 savedPayment.setStripeCustomerId(stripeResult.getCustomerId());
 
-                if (user.getStripeCustomerId() == null || user.getStripeCustomerId().isBlank()) {
-                    user.setStripeCustomerId(stripeResult.getCustomerId());
-                    userRepo.save(user);
+                if (savedPayment.getUser().getStripeCustomerId() == null ||
+                        savedPayment.getUser().getStripeCustomerId().isBlank()) {
+                    savedPayment.getUser().setStripeCustomerId(stripeResult.getCustomerId());
+                    userRepo.save(savedPayment.getUser());
                 }
             } else {
                 stripeResult = stripePaymentSheetService.createWebPayment(savedPayment);
@@ -181,6 +193,8 @@ public class PaymentServiceImpl implements PaymentService {
             }
 
             Payment payment = paymentOptional.get();
+            log.info("Payment status check for reference={} returned status={}",
+                    payment.getReference(), payment.getStatus());
 
             return PaymentSheetResponse.builder()
                     .status(200)

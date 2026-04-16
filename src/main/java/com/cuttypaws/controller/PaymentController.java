@@ -22,13 +22,13 @@ public class PaymentController {
         return paymentService.initializePaymentSheet(request);
     }
 
+    @GetMapping("/result")
+    public OrderResponse getPaymentResult(@RequestParam String reference) {
+        return orderItemService.getPaymentResult(reference);
+    }
+
     @GetMapping("/status")
     public PaymentSheetResponse getPaymentStatus(@RequestParam String reference) {
         return paymentService.getPaymentStatus(reference);
-    }
-
-    @PostMapping("/create-order")
-    public OrderResponse createOrderAfterPayment(@RequestBody PaymentOrderRequest request) {
-        return orderItemService.createOrderAfterPayment(request);
     }
 }

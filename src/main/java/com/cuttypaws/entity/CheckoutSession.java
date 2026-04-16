@@ -1,6 +1,5 @@
 package com.cuttypaws.entity;
 
-import com.cuttypaws.enums.OrderStatus;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -10,15 +9,12 @@ import java.util.List;
 
 @Data
 @Entity
-@Table(name = "orders")
-public class Order {
+@Table(name = "checkout_sessions")
+public class CheckoutSession {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
-    @Column(name = "order_number", nullable = false, unique = true)
-    private String orderNumber;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -33,8 +29,8 @@ public class Order {
     @Column(name = "tax_amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal taxAmount;
 
-    @Column(name = "total_price", nullable = false, precision = 12, scale = 2)
-    private BigDecimal totalPrice;
+    @Column(name = "total_amount", nullable = false, precision = 12, scale = 2)
+    private BigDecimal totalAmount;
 
     @Column(nullable = false)
     private String currency;
@@ -42,23 +38,20 @@ public class Order {
     @Column(name = "shipping_address", columnDefinition = "TEXT", nullable = false)
     private String shippingAddress;
 
-    @OneToMany(mappedBy = "order", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OrderItem> orderItemList;
+    @Column(name = "expires_at", nullable = false)
+    private LocalDateTime expiresAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "paid_at")
-    private LocalDateTime paidAt;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "order_status", nullable = false)
-    private OrderStatus orderStatus = OrderStatus.PENDING;
+    @OneToMany(mappedBy = "checkoutSession", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<CheckoutSessionItem> items;
 
     @PrePersist
     public void prePersist() {
-        if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now();
+        if (this.expiresAt == null) {
+            this.expiresAt = LocalDateTime.now().plusMinutes(30);
         }
     }
 }

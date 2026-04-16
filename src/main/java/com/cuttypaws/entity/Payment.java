@@ -58,6 +58,10 @@ public class Payment {
     private Order order;
 
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "checkout_session_id")
+    private CheckoutSession checkoutSession;
+
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "service_ad_subscription_id")
     private ServiceAdSubscription serviceAdSubscription;
 

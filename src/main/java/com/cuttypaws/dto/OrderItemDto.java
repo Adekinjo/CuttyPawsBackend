@@ -21,6 +21,8 @@ public class OrderItemDto {
     private Long id;
     private int quantity;
     private BigDecimal price;
+    private BigDecimal unitPrice;
+    private BigDecimal lineSubtotal;
     private String status;
     private UserDto user;
     private Long productId;

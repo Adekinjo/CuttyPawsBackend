@@ -109,6 +109,7 @@ public class SecurityConfig {
                                 "/users/login-history",
                                 "/order/create",
                                 "/payment/**",
+                                "/checkout/**",
                                 "/service-booking-reports/**",
                                 "/services/my-profile",
                                 "/services/my-dashboard",

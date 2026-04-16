@@ -63,6 +63,7 @@ public class ServiceAdSubscriptionServiceImpl implements ServiceAdSubscriptionSe
         String paymentReference = generatePaymentReference();
 
         ServiceAdSubscription subscription = ServiceAdSubscription.builder()
+                .user(currentUser)
                 .serviceProfile(profile)
                 .planType(request.getPlanType())
                 .amount(amount)

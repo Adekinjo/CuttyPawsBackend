@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 public interface OrderItemService {
-    OrderResponse createOrderAfterPayment(PaymentOrderRequest request);
 
     OrderResponse updateOrderItemStatus(Long orderItemId, String status);
     OrderResponse filterOrderItems(OrderStatus status, LocalDateTime startDate, LocalDateTime endDate, Long itemId, Pageable pageable);
@@ -22,6 +21,7 @@ public interface OrderItemService {
     OrderResponse getCompanyProductOrders(UUID companyId, Pageable pageable);
 
     OrderResponse getMyOrders(Pageable pageable);
+    OrderResponse getPaymentResult(String reference);
 
 }
 

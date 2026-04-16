@@ -112,7 +112,7 @@ public class UserMapper {
         OrderItemDto dto = new OrderItemDto();
         dto.setId(orderItem.getId());
         dto.setQuantity(orderItem.getQuantity());
-        dto.setPrice(orderItem.getPrice());
+        dto.setPrice(orderItem.getUnitPrice());
         dto.setStatus(orderItem.getOrderStatus().name());
         dto.setCreatedAt(orderItem.getCreatedAt());
         dto.setSelectedSize(orderItem.getSize());

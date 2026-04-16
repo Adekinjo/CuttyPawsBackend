@@ -8,6 +8,7 @@ import com.cuttypaws.enums.PaymentStatus;
 import com.cuttypaws.repository.PaymentRepo;
 import com.cuttypaws.repository.ServiceAdSubscriptionRepo;
 import com.cuttypaws.repository.ServiceBookingRepo;
+import com.cuttypaws.service.interf.OrderFinalizationService;
 import com.cuttypaws.service.interf.ServiceBookingService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
@@ -31,6 +32,7 @@ public class StripeWebhookController {
     private final ServiceAdSubscriptionRepo serviceAdSubscriptionRepo;
     private final ServiceBookingRepo serviceBookingRepo;
     private final ServiceBookingService serviceBookingService;
+    private final OrderFinalizationService orderFinalizationService;
 
     @Value("${stripe.webhook.secret}")
     private String webhookSecret;
@@ -142,7 +144,8 @@ public class StripeWebhookController {
             return;
         }
 
-        log.info("Order payment succeeded for payment {}", payment.getId());
+        orderFinalizationService.finalizeOrderFromPayment(payment);
+        log.info("Order created successfully for payment {}", payment.getId());
     }
 
     private void fulfillServiceAdPayment(Payment payment) {

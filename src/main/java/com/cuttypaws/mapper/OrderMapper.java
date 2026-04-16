@@ -21,7 +21,8 @@ public class OrderMapper {
         // Map basic fields
         dto.setId(orderItem.getId());
         dto.setQuantity(orderItem.getQuantity());
-        dto.setPrice(orderItem.getPrice());
+        dto.setPrice(orderItem.getUnitPrice());
+
         dto.setStatus(orderItem.getOrderStatus().name());
         dto.setCreatedAt(orderItem.getCreatedAt());
         dto.setUpdatedAt(orderItem.getUpdatedAt());
@@ -75,7 +76,8 @@ public class OrderMapper {
         return OrderItemDto.builder()
                 .id(oi.getId())
                 .quantity(oi.getQuantity())
-                .price(oi.getPrice())
+                .unitPrice(oi.getUnitPrice())
+                .lineSubtotal(oi.getLineTotal())
                 .status(oi.getOrderStatus().name())
                 .createdAt(oi.getCreatedAt())
                 .updatedAt(oi.getUpdatedAt())

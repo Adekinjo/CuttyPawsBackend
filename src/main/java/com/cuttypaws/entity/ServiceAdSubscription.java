@@ -74,6 +74,10 @@ public class ServiceAdSubscription {
     @Column(name = "starts_at")
     private LocalDateTime startsAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
     @Column(name = "ends_at")
     private LocalDateTime endsAt;
 

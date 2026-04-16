@@ -39,110 +39,36 @@ public class OrderItemServiceImpl implements OrderItemService {
     private final EmailService emailService;
 
 
-    @Transactional
     @Override
-    public OrderResponse createOrderAfterPayment(PaymentOrderRequest request) {
-        try {
-            log.info("Creating order after successful payment for payment ID: {}", request.getPaymentId());
+    public OrderResponse getPaymentResult(String reference) {
+        Payment payment = paymentRepo.findByReference(reference)
+                .orElseThrow(() -> new NotFoundException("Payment not found"));
 
-            // Verify payment exists and is successful
-            Payment payment = paymentRepo.findById(request.getPaymentId())
-                    .orElseThrow(() -> {
-                        log.error("Payment not found with ID: {}", request.getPaymentId());
-                        return new NotFoundException("Payment not found");
-                    });
-
-            if (payment.getStatus() != PaymentStatus.PAID) {
-                log.error("Payment is not successful. Payment status: {}", payment.getStatus());
-                throw new IllegalArgumentException("Payment is not successful. Please complete payment first.");
-            }
-
-            if (payment.getOrder() != null) {
-                log.error("Order already exists for this payment. Order ID: {}", payment.getOrder().getId());
-                throw new IllegalArgumentException("Order already created for this payment");
-            }
-
-            User user = payment.getUser();
-
-            // Validate order items
-            if (request.getItems() == null || request.getItems().isEmpty()) {
-                log.error("Order items are null or empty.");
-                throw new IllegalArgumentException("Order items cannot be null or empty");
-            }
-
-            // Create order items and update stock
-            List<OrderItem> orderItems = request.getItems().stream().map(orderItemRequest -> {
-                Product product = productRepo.findById(orderItemRequest.getProductId())
-                        .orElseThrow(() -> {
-                            log.error("Product not found with ID: {}", orderItemRequest.getProductId());
-                            return new NotFoundException("Product Not Found");
-                        });
-
-                // Check stock
-                if (product.getStock() < orderItemRequest.getQuantity()) {
-                    log.error("Insufficient stock for product: {}. Requested: {}, Available: {}",
-                            product.getName(), orderItemRequest.getQuantity(), product.getStock());
-                    throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
-                }
-
-                // Update stock
-                product.setStock(product.getStock() - orderItemRequest.getQuantity());
-                productRepo.save(product);
-
-                // Create order item
-                OrderItem orderItem = new OrderItem();
-                orderItem.setSize(orderItemRequest.getSize());
-                orderItem.setColor(orderItemRequest.getColor());
-                orderItem.setProduct(product);
-                orderItem.setQuantity(orderItemRequest.getQuantity());
-                orderItem.setPrice(product.getNewPrice().multiply(BigDecimal.valueOf(orderItemRequest.getQuantity())));
-                orderItem.setOrderStatus(OrderStatus.CONFIRMED);
-                orderItem.setUser(user);
-                return orderItem;
-            }).collect(Collectors.toList());
-
-            // Calculate total price
-            BigDecimal totalPrice = orderItems.stream()
-                    .map(OrderItem::getPrice)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-            // Create order
-            Order order = new Order();
-            order.setUser(user);
-            order.setOrderItemList(orderItems);
-            order.setTotalPrice(totalPrice);
-            order.setOrderStatus(OrderStatus.CONFIRMED);
-            order.setCreatedAt(LocalDateTime.now());
-
-            // Link order items to order
-            orderItems.forEach(orderItem -> orderItem.setOrder(order));
-
-            // Save order
-            Order savedOrder = orderRepo.save(order);
-
-            // Link payment to order
-            payment.setOrder(savedOrder);
-            paymentRepo.save(payment);
-
-            log.info("Order created successfully with ID: {} for payment ID: {}", savedOrder.getId(), payment.getId());
-
-            // Send notifications
-            sendOrderNotifications(savedOrder);
-
+        if (payment.getStatus() != PaymentStatus.PAID) {
             return OrderResponse.builder()
-                    .status(200)
-                    .message("Order created successfully")
-                    .orderId(savedOrder.getId())
+                    .status(202)
+                    .message("Payment is still pending")
                     .paymentId(payment.getId())
                     .build();
-
-        } catch (NotFoundException | IllegalArgumentException | InsufficientStockException e) {
-            log.error("Error creating order: {}", e.getMessage(), e);
-            throw e;
-        } catch (Exception e) {
-            log.error("Unexpected error creating order: {}", e.getMessage(), e);
-            throw new RuntimeException("An unexpected error occurred. Please try again.", e);
         }
+
+        if (payment.getOrder() == null) {
+            return OrderResponse.builder()
+                    .status(202)
+                    .message("Payment succeeded but order is still being finalized")
+                    .paymentId(payment.getId())
+                    .build();
+        }
+
+        Order order = payment.getOrder();
+
+        return OrderResponse.builder()
+                .status(200)
+                .message("Order retrieved successfully")
+                .paymentId(payment.getId())
+                .orderId(order.getId())
+                .order(orderMapper.toOrderDto(order))
+                .build();
     }
 
     // Method to send email notifications
@@ -211,7 +137,7 @@ public class OrderItemServiceImpl implements OrderItemService {
             for (OrderItem orderItem : order.getOrderItemList()) {
                 body += "Product: " + orderItem.getProduct().getName() + ", Quantity: "
                         + orderItem.getQuantity() + ", Price: USD"
-                        + orderItem.getPrice() + "\n";
+                        + orderItem.getUnitPrice() + "\n";
             }
 
             body += "\nThank you for reviewing this order.";
@@ -234,7 +160,7 @@ public class OrderItemServiceImpl implements OrderItemService {
                     + "Order ID: " + order.getId() + "\n"
                     + "Product: " + orderItem.getProduct().getName() + "\n"
                     + "Quantity: " + orderItem.getQuantity() + "\n"
-                    + "Price: NGN" + orderItem.getPrice() + "\n"
+                    + "Price: NGN" + orderItem.getUnitPrice() + "\n"
                     + "Total Order Price: NGN" + order.getTotalPrice() + "\n\n"
                     + "Please prepare the product for shipping.\n\n"
                     + "Best regards,\n"
